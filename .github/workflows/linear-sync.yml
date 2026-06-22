@@ -1,0 +1,92 @@
+name: Linear Issue Sync
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, closed]
+  push:
+    branches: [main]
+
+jobs:
+  sync-linear:
+    name: Sync Linear Issue State
+    runs-on: ubuntu-latest
+    if: vars.LINEAR_API_KEY != ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract Linear issue ID from branch name
+        id: extract
+        run: |
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          # Match patterns: feature/ENG-42-slug, fix/ENG-42-slug, security/ENG-42-slug
+          ISSUE_ID=$(echo "$BRANCH" | grep -oE '[A-Z]+-[0-9]+' | head -1 || echo "")
+          echo "issue_id=${ISSUE_ID}" >> $GITHUB_OUTPUT
+          echo "Found Linear issue ID: ${ISSUE_ID:-none}"
+
+      - name: Update Linear issue to In Review (PR opened)
+        if: github.event_name == 'pull_request' && github.event.action == 'opened' && steps.extract.outputs.issue_id != ''
+        run: |
+          ISSUE_ID="${{ steps.extract.outputs.issue_id }}"
+
+          # Get team states to find "In Review" state
+          STATES=$(curl -sf "https://api.linear.app/graphql" \
+            -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$id: String!) { issue(id: \$id) { team { states { nodes { id name } } } } }\",\"variables\":{\"id\":\"${ISSUE_ID}\"}}" 2>/dev/null) || exit 0
+
+          IN_REVIEW_ID=$(echo "$STATES" | python3 -c "
+          import sys, json, re
+          data = json.load(sys.stdin)
+          try:
+            nodes = data['data']['issue']['team']['states']['nodes']
+            for n in nodes:
+              if any(k in n['name'].lower() for k in ['review', 'in review', 'review']):
+                print(n['id']); break
+          except: pass
+          " 2>/dev/null || echo "")
+
+          if [[ -n "$IN_REVIEW_ID" ]]; then
+            curl -sf "https://api.linear.app/graphql" \
+              -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"mutation(\$id: String!, \$stateId: String!) { issueUpdate(id: \$id, input: { stateId: \$stateId }) { success } }\",\"variables\":{\"id\":\"${ISSUE_ID}\",\"stateId\":\"${IN_REVIEW_ID}\"}}" 2>/dev/null || true
+            echo "[ok] Linear ${ISSUE_ID} → In Review"
+          fi
+
+          # Add PR link as a Linear comment
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          curl -sf "https://api.linear.app/graphql" \
+            -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation(\$id: String!, \$body: String!) { commentCreate(input: { issueId: \$id, body: \$body }) { success } }\",\"variables\":{\"id\":\"${ISSUE_ID}\",\"body\":\"PR opened: [#${PR_NUMBER}](${PR_URL})\"}}" 2>/dev/null || true
+
+      - name: Update Linear issue to Done (PR merged to main)
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && steps.extract.outputs.issue_id != ''
+        run: |
+          ISSUE_ID="${{ steps.extract.outputs.issue_id }}"
+
+          STATES=$(curl -sf "https://api.linear.app/graphql" \
+            -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$id: String!) { issue(id: \$id) { team { states { nodes { id name type } } } } }\",\"variables\":{\"id\":\"${ISSUE_ID}\"}}" 2>/dev/null) || exit 0
+
+          DONE_ID=$(echo "$STATES" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          try:
+            nodes = data['data']['issue']['team']['states']['nodes']
+            for n in nodes:
+              if n.get('type') == 'completed' or n['name'].lower() in ['done', 'released', 'completed']:
+                print(n['id']); break
+          except: pass
+          " 2>/dev/null || echo "")
+
+          if [[ -n "$DONE_ID" ]]; then
+            curl -sf "https://api.linear.app/graphql" \
+              -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"mutation(\$id: String!, \$stateId: String!) { issueUpdate(id: \$id, input: { stateId: \$stateId }) { success } }\",\"variables\":{\"id\":\"${ISSUE_ID}\",\"stateId\":\"${DONE_ID}\"}}" 2>/dev/null || true
+            echo "[ok] Linear ${ISSUE_ID} → Done"
+          fi

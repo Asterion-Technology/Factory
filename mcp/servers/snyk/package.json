@@ -1,0 +1,16 @@
+{
+  "name": "factory-snyk-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Snyk — dependency scanning, container scanning (scan-only, no policy changes)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

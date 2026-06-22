@@ -1,0 +1,90 @@
+{
+  "name": "Agentic DevSecOps Factory",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+
+  "features": {
+    "ghcr.io/anthropics/claude-code/claude-code-devcontainer-feature:latest": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "installYarnUsingApt": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/powershell:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest"
+    }
+  },
+
+  "forwardPorts": [
+    11434,
+    4000,
+    8000,
+    8080
+  ],
+
+  "portsAttributes": {
+    "11434": {
+      "label": "Ollama",
+      "onAutoForward": "silent"
+    },
+    "4000": {
+      "label": "LiteLLM",
+      "onAutoForward": "silent"
+    },
+    "8000": {
+      "label": "ChromaDB",
+      "onAutoForward": "silent"
+    },
+    "8080": {
+      "label": "App Preview",
+      "onAutoForward": "notify"
+    }
+  },
+
+  "postCreateCommand": "bash scripts/install-security-tools.sh && bash scripts/bootstrap.sh --check || true",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "files.exclude": {
+          "node_modules": true,
+          ".git": false
+        }
+      },
+      "extensions": [
+        "anthropics.claude-code",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens"
+      ]
+    }
+  },
+
+  "remoteEnv": {
+    "OLLAMA_HOST": "http://host.docker.internal:11434",
+    "LITELLM_HOST": "http://localhost:4000",
+    "CHROMA_HOST": "http://localhost:8000",
+    "CHROMA_TOKEN": "factory-chroma-token",
+    "EMBED_MODEL": "nomic-embed-text",
+    "FACTORY_ROOT": "${containerWorkspaceFolder}"
+  },
+
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+  ]
+}

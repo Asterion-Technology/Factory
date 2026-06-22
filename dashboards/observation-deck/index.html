@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factory Observation Deck</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+    integrity="sha384-nPOB5b4HXEdK4dJxHGGxaAGFLSOHFhFx7zJkFHMIIDZYH+eqDwcwMOEb6IIx8OF"
+    crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --orange: #ffa657;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card.wide {
+      grid-column: span 2;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .metric-row:last-child { border-bottom: none; }
+
+    .metric-label { color: var(--text-muted); }
+
+    .metric-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ok    { color: var(--green); }
+    .warn  { color: var(--yellow); }
+    .fail  { color: var(--red); }
+    .info  { color: var(--blue); }
+    .dim   { color: var(--text-muted); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge.pass { background: rgba(63,185,80,.15); color: var(--green); }
+    .badge.skip { background: rgba(125,133,144,.12); color: var(--text-muted); }
+    .badge.fail { background: rgba(248,81,73,.15); color: var(--red); }
+
+    .chart-container {
+      position: relative;
+      height: 200px;
+      margin-top: 8px;
+    }
+
+    .agent-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .big-number {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .sub-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .numbers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .number-block { padding: 8px 0; }
+
+    .no-data {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-style: italic;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    #last-updated {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Factory Observation Deck</h1>
+  <div class="status-line">
+    <span class="dot"></span>
+    <span id="last-updated">Loading...</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- AI Workforce Distribution -->
+  <div class="card">
+    <div class="card-title">AI Workforce</div>
+    <div class="chart-container">
+      <canvas id="workforceChart"></canvas>
+    </div>
+    <div class="agent-legend" id="workforceLegend"></div>
+  </div>
+
+  <!-- Cost This Week -->
+  <div class="card">
+    <div class="card-title">Cost This Week</div>
+    <div id="costMetrics">
+      <div class="no-data">Connect Langfuse to see cost data</div>
+    </div>
+  </div>
+
+  <!-- PR Velocity -->
+  <div class="card">
+    <div class="card-title">PR Velocity</div>
+    <div id="prMetrics">
+      <div class="no-data">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Security Gates -->
+  <div class="card">
+    <div class="card-title">Security Gates</div>
+    <div id="securityGates">
+      <div class="no-data">Loading...</div>
+    </div>
+  </div>
+
+  <!-- MCP Server Status -->
+  <div class="card wide">
+    <div class="card-title">MCP Server Status</div>
+    <div id="mcpStatus" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:8px; margin-top:4px;">
+      <div class="no-data">Loading MCP config...</div>
+    </div>
+  </div>
+
+  <!-- RTK Compression -->
+  <div class="card">
+    <div class="card-title">RTK Compression</div>
+    <div id="rtkMetrics">
+      <div class="no-data">No sessions recorded yet</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Color palette ────────────────────────────────────────────────────────
+  const COLORS = {
+    claude:  '#58a6ff',
+    codex:   '#bc8cff',
+    ollama:  '#3fb950',
+    human:   '#ffa657',
+    other:   '#7d8590',
+  };
+
+  // ── Fetch metrics.json (written by a metrics collector script) ───────────
+  async function loadMetrics() {
+    try {
+      const res = await fetch('./metrics.json');
+      if (!res.ok) throw new Error('Not found');
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Fetch mcp.factory.json to show server status ─────────────────────────
+  async function loadMcpConfig() {
+    try {
+      const res = await fetch('../../mcp/mcp.factory.json');
+      if (!res.ok) throw new Error('Not found');
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Render workforce chart ────────────────────────────────────────────────
+  function renderWorkforceChart(data) {
+    const defaults = { claude: 30, codex: 20, ollama: 35, human: 10, other: 5 };
+    const workforce = (data && data.workforce) ? data.workforce : defaults;
+
+    const labels  = Object.keys(workforce);
+    const values  = Object.values(workforce);
+    const colors  = labels.map(l => COLORS[l] || COLORS.other);
+
+    const ctx = document.getElementById('workforceChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }]
+      },
+      options: {
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.parsed}%`
+            }
+          }
+        }
+      }
+    });
+
+    // Legend
+    const legendEl = document.getElementById('workforceLegend');
+    legendEl.innerHTML = labels.map((l, i) =>
+      `<div class="legend-item">
+        <div class="legend-dot" style="background:${colors[i]}"></div>
+        <span>${l.charAt(0).toUpperCase() + l.slice(1)} ${values[i]}%</span>
+      </div>`
+    ).join('');
+  }
+
+  // ── Render cost metrics ───────────────────────────────────────────────────
+  function renderCost(data) {
+    const el = document.getElementById('costMetrics');
+    if (!data || !data.cost) {
+      el.innerHTML = `
+        <div class="no-data">Connect Langfuse to see cost data</div>
+        <div style="margin-top:12px">
+          <div class="metric-row"><span class="metric-label">Langfuse</span><span class="badge skip">Not connected</span></div>
+          <div class="metric-row"><span class="metric-label">Cost tracking</span><span class="badge skip">Pending Phase 5</span></div>
+        </div>`;
+      return;
+    }
+    const c = data.cost;
+    el.innerHTML = `
+      <div class="numbers-grid">
+        <div class="number-block"><div class="big-number info">$${(c.total || 0).toFixed(2)}</div><div class="sub-label">Total this week</div></div>
+        <div class="number-block"><div class="big-number ok">$${(c.saved_rtk || 0).toFixed(2)}</div><div class="sub-label">Saved by RTK</div></div>
+      </div>
+      <div class="metric-row"><span class="metric-label">Claude tokens</span><span class="metric-value info">${(c.claude_tokens || 0).toLocaleString()}</span></div>
+      <div class="metric-row"><span class="metric-label">Codex tokens</span><span class="metric-value" style="color:var(--purple)">${(c.codex_tokens || 0).toLocaleString()}</span></div>
+      <div class="metric-row"><span class="metric-label">Ollama tasks</span><span class="metric-value ok">${(c.ollama_tasks || 0).toLocaleString()}</span></div>`;
+  }
+
+  // ── Render PR velocity ────────────────────────────────────────────────────
+  function renderPR(data) {
+    const el = document.getElementById('prMetrics');
+    if (!data || !data.prs) {
+      el.innerHTML = `<div class="no-data">Connect GitHub token to see PR data</div>`;
+      return;
+    }
+    const p = data.prs;
+    el.innerHTML = `
+      <div class="numbers-grid">
+        <div class="number-block"><div class="big-number ok">${p.merged_this_week || 0}</div><div class="sub-label">Merged this week</div></div>
+        <div class="number-block"><div class="big-number warn">${p.open || 0}</div><div class="sub-label">Open PRs</div></div>
+      </div>
+      <div class="metric-row"><span class="metric-label">Avg cycle time</span><span class="metric-value">${p.avg_cycle_hours || '—'}h</span></div>
+      <div class="metric-row"><span class="metric-label">CI pass rate</span><span class="metric-value ok">${p.ci_pass_rate || '—'}%</span></div>
+      <div class="metric-row"><span class="metric-label">Codex blocks</span><span class="metric-value ${(p.codex_blocks || 0) > 0 ? 'fail' : 'ok'}">${p.codex_blocks || 0}</span></div>`;
+  }
+
+  // ── Render security gates ─────────────────────────────────────────────────
+  function renderSecurity(data) {
+    const el = document.getElementById('securityGates');
+    const gates = (data && data.security) ? data.security : {};
+
+    const allGates = [
+      { key: 'gitleaks',  label: 'Gitleaks' },
+      { key: 'semgrep',   label: 'Semgrep SAST' },
+      { key: 'trivy',     label: 'Trivy' },
+      { key: 'snyk',      label: 'Snyk' },
+      { key: 'lint',      label: 'Lint' },
+      { key: 'typecheck', label: 'Type Check' },
+      { key: 'build',     label: 'Build' },
+      { key: 'unit_tests',label: 'Unit Tests' },
+      { key: 'e2e',       label: 'E2E Tests' },
+      { key: 'mcp_config',label: 'MCP Config' },
+    ];
+
+    el.innerHTML = allGates.map(g => {
+      const status = gates[g.key];
+      const badge = status === 'pass' ? '<span class="badge pass">pass</span>'
+                  : status === 'fail' ? '<span class="badge fail">fail</span>'
+                  : '<span class="badge skip">—</span>';
+      return `<div class="metric-row"><span class="metric-label">${g.label}</span>${badge}</div>`;
+    }).join('');
+  }
+
+  // ── Render MCP server status ──────────────────────────────────────────────
+  function renderMCP(mcpConfig) {
+    const el = document.getElementById('mcpStatus');
+    if (!mcpConfig) {
+      el.innerHTML = '<div class="no-data">Could not load mcp.factory.json</div>';
+      return;
+    }
+
+    const servers = mcpConfig.mcpServers || {};
+    el.innerHTML = Object.entries(servers).map(([name, cfg]) => {
+      const disabled = cfg.disabled === true;
+      const phase3 = cfg._status && cfg._status.includes('Phase 3');
+      const badge = disabled
+        ? '<span class="badge skip">Phase 3</span>'
+        : '<span class="badge pass">active</span>';
+      return `
+        <div style="padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--border)">
+          <div style="font-weight:600; margin-bottom:4px">${name}</div>
+          <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px">${cfg.description ? cfg.description.split('—')[0].trim() : ''}</div>
+          ${badge}
+        </div>`;
+    }).join('');
+  }
+
+  // ── Render RTK metrics ────────────────────────────────────────────────────
+  function renderRTK(data) {
+    const el = document.getElementById('rtkMetrics');
+    if (!data || !data.rtk) {
+      el.innerHTML = `
+        <div class="no-data">No RTK sessions logged yet</div>
+        <div style="margin-top:12px">
+          <div class="metric-row"><span class="metric-label">Usage</span><span class="metric-value dim">Pipe output through scripts/rtk-compress.sh</span></div>
+        </div>`;
+      return;
+    }
+    const r = data.rtk;
+    el.innerHTML = `
+      <div class="numbers-grid">
+        <div class="number-block"><div class="big-number ok">${r.avg_reduction || 0}%</div><div class="sub-label">Avg reduction</div></div>
+        <div class="number-block"><div class="big-number info">${(r.tokens_saved || 0).toLocaleString()}</div><div class="sub-label">Tokens saved</div></div>
+      </div>
+      <div class="metric-row"><span class="metric-label">Sessions this week</span><span class="metric-value">${r.sessions || 0}</span></div>
+      <div class="metric-row"><span class="metric-label">Est. cost avoided</span><span class="metric-value ok">$${(r.cost_avoided || 0).toFixed(2)}</span></div>`;
+  }
+
+  // ── Main ──────────────────────────────────────────────────────────────────
+  async function main() {
+    const [metrics, mcpConfig] = await Promise.all([loadMetrics(), loadMcpConfig()]);
+
+    renderWorkforceChart(metrics);
+    renderCost(metrics);
+    renderPR(metrics);
+    renderSecurity(metrics);
+    renderMCP(mcpConfig);
+    renderRTK(metrics);
+
+    const ts = metrics && metrics.updated_at
+      ? new Date(metrics.updated_at).toLocaleString()
+      : 'No metrics file found — run scripts/metrics-collector.sh';
+    document.getElementById('last-updated').textContent = `Updated: ${ts}`;
+  }
+
+  main();
+
+  // Refresh every 60 seconds
+  setInterval(main, 60_000);
+</script>
+</body>
+</html>

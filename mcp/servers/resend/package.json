@@ -1,0 +1,16 @@
+{
+  "name": "factory-resend-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Resend — email template review and sandbox test sending (sandbox only, no production sends)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

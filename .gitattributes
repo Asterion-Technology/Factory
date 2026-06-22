@@ -1,0 +1,18 @@
+# Normalize line endings to LF in the repo, checkout as-is on all platforms
+* text=auto eol=lf
+
+# Force LF for shell scripts (must not have CRLF)
+*.sh text eol=lf
+
+# Force LF for JS/JSON/YAML
+*.js text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+# Binary files — no line ending conversion
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary

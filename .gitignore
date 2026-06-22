@@ -1,0 +1,50 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Node
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/
+*.lcov
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+*.swp
+*.swo
+
+# Local VS Code overrides (keep .vscode/mcp.json and .vscode/settings.json)
+.vscode/launch.json
+.vscode/*.code-snippets
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# LiteLLM local DB
+litellm.db
+
+# Metrics output (generated, not committed)
+dashboards/observation-deck/metrics.json
+
+# Devcontainer local secrets
+.devcontainer/.env

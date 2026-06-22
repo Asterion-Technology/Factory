@@ -1,0 +1,75 @@
+name: Metrics Collection
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to look back'
+        required: false
+        default: '7'
+      force:
+        description: 'Force update even if metrics are recent'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  collect-metrics:
+    name: Collect Factory Metrics
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up git identity
+        run: |
+          git config user.name "factory-bot"
+          git config user.email "factory-bot@users.noreply.github.com"
+
+      - name: Collect metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: ${{ vars.LANGFUSE_HOST || 'https://cloud.langfuse.com' }}
+        run: |
+          DAYS="${{ github.event.inputs.days || '7' }}"
+          bash scripts/metrics-collector.sh \
+            --repo "${{ github.repository }}" \
+            --days "$DAYS"
+
+      - name: Commit metrics.json
+        run: |
+          git add dashboards/observation-deck/metrics.json
+          if git diff --cached --quiet; then
+            echo "[skip] Metrics unchanged"
+            exit 0
+          fi
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          git commit -m "chore: update observation deck metrics [${TIMESTAMP}]
+
+          Auto-collected by factory metrics workflow.
+
+          Co-Authored-By: factory-bot <factory-bot@users.noreply.github.com>"
+          git push origin main
+
+      - name: Summary
+        run: |
+          echo "## Metrics Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ -f dashboards/observation-deck/metrics.json ]]; then
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat dashboards/observation-deck/metrics.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "metrics.json not found — check script output above" >> $GITHUB_STEP_SUMMARY
+          fi

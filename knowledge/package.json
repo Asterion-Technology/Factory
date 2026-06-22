@@ -1,0 +1,13 @@
+{
+  "name": "factory-knowledge-ingest",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Document ingestion pipeline for the factory knowledge base",
+  "main": "ingest.js",
+  "scripts": {
+    "ingest": "node ingest.js",
+    "ingest:docs": "node ingest.js --dir ../docs",
+    "ingest:all": "node ingest.js --dir ../docs --dir ../policies --dir ../agents --dir ../prompts"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,85 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git fetch*)",
+      "Bash(git pull*)",
+      "Bash(git push origin feature/*)",
+      "Bash(git push origin fix/*)",
+      "Bash(git push origin security/*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr diff*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh issue list*)",
+      "Bash(gh issue view*)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(railway logs*)",
+      "Bash(railway status*)",
+      "Bash(railway list*)",
+      "Bash(npm install*)",
+      "Bash(npm run*)",
+      "Bash(npm test*)",
+      "Bash(npx*)",
+      "Bash(pnpm install*)",
+      "Bash(pnpm run*)",
+      "Bash(pnpm test*)",
+      "Bash(node*)",
+      "Bash(eslint*)",
+      "Bash(tsc*)",
+      "Bash(docker compose config*)",
+      "Bash(docker compose ps*)",
+      "Bash(docker compose logs*)",
+      "Bash(bash scripts/bootstrap.sh*)",
+      "Bash(bash scripts/rtk-compress.sh*)",
+      "Bash(bash scripts/install-mcps.sh*)",
+      "Bash(bash scripts/sync-config.sh*)",
+      "Bash(cat*)",
+      "Bash(ls*)",
+      "Bash(find*)",
+      "Bash(grep*)",
+      "Bash(curl -s*)",
+      "Bash(jq*)"
+    ],
+    "deny": [
+      "Bash(git push origin main*)",
+      "Bash(git push origin staging*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git checkout -- .)",
+      "Bash(railway deploy*)",
+      "Bash(railway up*)",
+      "Bash(docker compose up*)",
+      "Bash(docker compose down*)",
+      "Bash(rm -rf*)",
+      "Bash(chmod 777*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[factory] Tool use logged'"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "FACTORY_ROOT": "${workspaceFolder}",
+    "RTK_MODEL": "mistral:7b",
+    "OLLAMA_HOST": "http://localhost:11434",
+    "LITELLM_HOST": "http://localhost:4000"
+  }
+}

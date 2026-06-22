@@ -1,0 +1,55 @@
+model_list:
+  # ── Tier 1: Local / Ollama (commodity tasks — no API cost) ─────────────────
+  - model_name: ollama/mistral
+    litellm_params:
+      model: ollama/mistral:7b
+      api_base: "${OLLAMA_HOST:-http://localhost:11434}"
+
+  - model_name: ollama/codellama
+    litellm_params:
+      model: ollama/codellama:7b
+      api_base: "${OLLAMA_HOST:-http://localhost:11434}"
+
+  # ── Tier 2: Claude (primary — architecture, complex coding, security) ───────
+  - model_name: claude/primary
+    litellm_params:
+      model: claude-sonnet-4-6
+      api_key: "${ANTHROPIC_API_KEY}"
+
+  - model_name: claude/fast
+    litellm_params:
+      model: claude-haiku-4-5-20251001
+      api_key: "${ANTHROPIC_API_KEY}"
+
+  # ── Tier 3: OpenAI / Codex (independent review only) ───────────────────────
+  - model_name: codex/reviewer
+    litellm_params:
+      model: gpt-4o-2024-08-06
+      api_key: "${OPENAI_API_KEY}"
+
+router_settings:
+  routing_strategy: usage-based-routing-v2
+  fallbacks:
+    # If Ollama fails twice, escalate to Claude
+    - ollama/mistral:
+        - claude/fast
+    - ollama/codellama:
+        - claude/fast
+  num_retries: 2
+  retry_after: 5
+  timeout: 60
+  cooldown_time: 30
+
+litellm_settings:
+  set_verbose: false
+  # Langfuse callbacks — uncomment once LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set
+  # success_callback:
+  #   - langfuse
+  # failure_callback:
+  #   - langfuse
+  # callbacks:
+  #   - langfuse
+
+general_settings:
+  master_key: "${LITELLM_MASTER_KEY:-factory-local-dev}"
+  store_model_in_db: false

@@ -1,0 +1,10 @@
+{
+  "name": "factory-knowledge-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Factory knowledge base MCP server — semantic search over ADRs, threat models, runbooks, and policies",
+  "main": "index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
