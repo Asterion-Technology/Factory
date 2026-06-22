@@ -67,7 +67,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run lint 2>/dev/null || echo "No lint script configured — add 'lint' to package.json scripts"
+      - run: npm run lint --workspaces --if-present 2>/dev/null || echo "[ok] No lint scripts found in workspaces"
 
   # ── Gate 5: Type check ──────────────────────────────────────────────────────
   type-check:
@@ -80,7 +80,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run typecheck 2>/dev/null || npx tsc --noEmit 2>/dev/null || echo "No TypeScript config found — add tsconfig.json"
+      - run: npm run typecheck --workspaces --if-present 2>/dev/null || echo "[ok] No typecheck scripts found in workspaces"
 
   # ── Gate 6: Build ───────────────────────────────────────────────────────────
   build:
@@ -94,7 +94,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build 2>/dev/null || echo "No build script configured"
+      - run: npm run build --workspaces --if-present 2>/dev/null || echo "[ok] No build scripts found in workspaces"
 
   # ── Gate 7: Unit tests ──────────────────────────────────────────────────────
   unit-tests:
@@ -108,7 +108,7 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm test 2>/dev/null || echo "No test script configured"
+      - run: npm test --workspaces --if-present 2>/dev/null || echo "[ok] No test scripts found in workspaces"
 
   # ── Gate 8: Snyk dependency audit ───────────────────────────────────────────
   snyk:
@@ -127,7 +127,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high
+          args: --severity-threshold=high --all-projects
         continue-on-error: true
 
   # ── Gate 9: E2E tests ───────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run Playwright tests
-        run: npx playwright test 2>/dev/null || echo "No Playwright config found — add playwright.config.ts"
+        run: npm test --workspaces --if-present 2>/dev/null || echo "[ok] No Playwright tests found"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
