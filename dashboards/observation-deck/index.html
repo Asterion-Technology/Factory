@@ -280,16 +280,7 @@
     }
   }
 
-  // ── Fetch mcp.factory.json to show server status ─────────────────────────
-  async function loadMcpConfig() {
-    try {
-      const res = await fetch('../../mcp/mcp.factory.json');
-      if (!res.ok) throw new Error('Not found');
-      return await res.json();
-    } catch {
-      return null;
-    }
-  }
+  // MCP config is embedded in metrics.json by metrics-collector.sh
 
   // ── Render workforce chart ────────────────────────────────────────────────
   function renderWorkforceChart(data) {
@@ -399,24 +390,20 @@
   }
 
   // ── Render MCP server status ──────────────────────────────────────────────
-  function renderMCP(mcpConfig) {
+  function renderMCP(data) {
     const el = document.getElementById('mcpStatus');
-    if (!mcpConfig) {
-      el.innerHTML = '<div class="no-data">Could not load mcp.factory.json</div>';
+    const servers = data && data.mcp_servers;
+    if (!servers || servers.length === 0) {
+      el.innerHTML = '<div class="no-data">Run scripts/metrics-collector.sh to populate MCP status</div>';
       return;
     }
-
-    const servers = mcpConfig.mcpServers || {};
-    el.innerHTML = Object.entries(servers).map(([name, cfg]) => {
-      const disabled = cfg.disabled === true;
-      const phase3 = cfg._status && cfg._status.includes('Phase 3');
-      const badge = disabled
-        ? '<span class="badge skip">Phase 3</span>'
-        : '<span class="badge pass">active</span>';
+    el.innerHTML = servers.map(s => {
+      const badge = s.active
+        ? '<span class="badge pass">active</span>'
+        : '<span class="badge skip">disabled</span>';
       return `
         <div style="padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--border)">
-          <div style="font-weight:600; margin-bottom:4px">${name}</div>
-          <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px">${cfg.description ? cfg.description.split('—')[0].trim() : ''}</div>
+          <div style="font-weight:600; margin-bottom:6px">${s.name}</div>
           ${badge}
         </div>`;
     }).join('');
@@ -445,13 +432,13 @@
 
   // ── Main ──────────────────────────────────────────────────────────────────
   async function main() {
-    const [metrics, mcpConfig] = await Promise.all([loadMetrics(), loadMcpConfig()]);
+    const metrics = await loadMetrics();
 
     renderWorkforceChart(metrics);
     renderCost(metrics);
     renderPR(metrics);
     renderSecurity(metrics);
-    renderMCP(mcpConfig);
+    renderMCP(metrics);
     renderRTK(metrics);
 
     const ts = metrics && metrics.updated_at

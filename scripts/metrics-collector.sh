@@ -187,6 +187,32 @@ if [[ $MERGED_PRS -gt 0 ]]; then
   fi
 fi
 
+# ── Sanitize numeric vars (guard against empty strings) ───────────────────────
+MERGED_PRS="${MERGED_PRS:-0}"
+OPEN_PRS="${OPEN_PRS:-0}"
+AVG_CYCLE_HOURS="${AVG_CYCLE_HOURS:-0}"
+CI_PASS_RATE="${CI_PASS_RATE:-0}"
+CODEX_BLOCKS="${CODEX_BLOCKS:-0}"
+TOTAL_COST="${TOTAL_COST:-0}"
+RTK_SAVINGS="${RTK_SAVINGS:-0}"
+CLAUDE_TOKENS="${CLAUDE_TOKENS:-0}"
+CODEX_TOKENS="${CODEX_TOKENS:-0}"
+OLLAMA_TASKS="${OLLAMA_TASKS:-0}"
+RTK_AVG_REDUCTION="${RTK_AVG_REDUCTION:-0}"
+RTK_TOKENS_SAVED="${RTK_TOKENS_SAVED:-0}"
+RTK_SESSIONS="${RTK_SESSIONS:-0}"
+
+# ── Read MCP server list and embed in metrics.json ────────────────────────────
+MCP_JSON="[]"
+MCP_FILE="${FACTORY_ROOT}/mcp/mcp.factory.json"
+if [[ -f "$MCP_FILE" ]]; then
+  MCP_JSON=$(node -e "
+    const d = JSON.parse(require('fs').readFileSync('${MCP_FILE}', 'utf8'));
+    const out = Object.entries(d.mcpServers || {}).map(([k,v]) => ({name:k, active:!v.disabled}));
+    process.stdout.write(JSON.stringify(out));
+  " 2>/dev/null || echo "[]")
+fi
+
 # ── Write metrics.json ─────────────────────────────────────────────────────────
 mkdir -p "$(dirname "$OUTPUT")"
 
@@ -233,7 +259,8 @@ cat > "$OUTPUT" <<JSON
     "tokens_saved": ${RTK_TOKENS_SAVED},
     "sessions": ${RTK_SESSIONS},
     "cost_avoided": $(echo "scale=4; ${RTK_TOKENS_SAVED} * 0.000003" | bc 2>/dev/null || echo "0")
-  }
+  },
+  "mcp_servers": ${MCP_JSON}
 }
 JSON
 
