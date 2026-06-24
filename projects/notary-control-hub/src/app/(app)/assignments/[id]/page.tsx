@@ -10,6 +10,10 @@ import {
 import Link from "next/link";
 import { ChecklistPanel } from "./checklist-panel";
 import { StatusTransitionButton } from "./status-button";
+import { DocumentUploader } from "./document-uploader";
+import { StatusBadge, InvoiceStatusBadge } from "@/components/ui/status-badge";
+
+const LOCKED_STATUSES = new Set(["CANCELLED", "PAID"]);
 
 export default async function AssignmentDetailPage({
   params,
@@ -37,6 +41,7 @@ export default async function AssignmentDetailPage({
   if (!assignment) notFound();
 
   const allowedTransitions = STATUS_TRANSITIONS[assignment.status] ?? [];
+  const canEdit = !LOCKED_STATUSES.has(assignment.status);
 
   return (
     <div className="space-y-6">
@@ -58,6 +63,14 @@ export default async function AssignmentDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <Link
+              href={`/assignments/${id}/edit`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Edit
+            </Link>
+          )}
           {allowedTransitions.map((next) => (
             <StatusTransitionButton
               key={next}
@@ -111,25 +124,21 @@ export default async function AssignmentDetailPage({
           </Section>
 
           {/* Checklists */}
-          {assignment.checklists.map((cl) => (
-            <ChecklistPanel key={cl.id} checklist={cl} assignmentId={id} />
-          ))}
+          {assignment.checklists.length === 0 ? (
+            <Section title="Checklists">
+              <p className="text-sm text-slate-400">No checklists attached to this assignment.</p>
+            </Section>
+          ) : (
+            assignment.checklists.map((cl) => (
+              <ChecklistPanel key={cl.id} checklist={cl} assignmentId={id} />
+            ))
+          )}
 
           {/* Documents */}
-          <Section
-            title="Documents"
-            action={
-              <label
-                htmlFor="doc-upload"
-                className="cursor-pointer text-xs text-blue-600 hover:underline"
-              >
-                Upload
-              </label>
-            }
-          >
+          <Section title="Documents">
             <DocumentUploader assignmentId={id} />
             {assignment.documents.length === 0 ? (
-              <p className="text-sm text-slate-400">No documents uploaded.</p>
+              <p className="text-sm text-slate-400">No documents uploaded yet.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {assignment.documents.map((doc) => (
@@ -192,7 +201,7 @@ export default async function AssignmentDetailPage({
                     #{assignment.invoice.invoiceNumber}
                   </Link>
                 </p>
-                <StatusBadgeInvoice status={assignment.invoice.status} />
+                <InvoiceStatusBadge status={assignment.invoice.status} />
                 <p className="text-slate-600">
                   {formatCurrency(assignment.invoice.total)}
                 </p>
@@ -239,17 +248,14 @@ export default async function AssignmentDetailPage({
 function Section({
   title,
   children,
-  action,
 }: {
   title: string;
   children: React.ReactNode;
-  action?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <h2 className="text-sm font-medium text-slate-700">{title}</h2>
-        {action}
       </div>
       <div className="px-4 py-4">{children}</div>
     </div>
@@ -282,73 +288,6 @@ function FeeRow({
     <div className="flex justify-between">
       <span className="text-slate-500">{label}</span>
       <span className="text-slate-800">{formatCurrency(value as number)}</span>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    NEW: "bg-slate-100 text-slate-700",
-    CONFIRMED: "bg-blue-100 text-blue-700",
-    DOCS_RECEIVED: "bg-yellow-100 text-yellow-700",
-    PRINTED: "bg-orange-100 text-orange-700",
-    IN_PROGRESS: "bg-purple-100 text-purple-700",
-    COMPLETED: "bg-green-100 text-green-700",
-    INVOICED: "bg-teal-100 text-teal-700",
-    PAID: "bg-emerald-100 text-emerald-700",
-    CANCELLED: "bg-red-100 text-red-700",
-  };
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colors[status] ?? "bg-slate-100 text-slate-700"}`}
-    >
-      {ASSIGNMENT_STATUS_LABELS[status] ?? status}
-    </span>
-  );
-}
-
-function StatusBadgeInvoice({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    DRAFT: "bg-slate-100 text-slate-700",
-    SENT: "bg-blue-100 text-blue-700",
-    PAID: "bg-emerald-100 text-emerald-700",
-    OVERDUE: "bg-red-100 text-red-700",
-    CANCELLED: "bg-slate-100 text-slate-500",
-  };
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colors[status] ?? "bg-slate-100 text-slate-700"}`}
-    >
-      {status}
-    </span>
-  );
-}
-
-function DocumentUploader({ assignmentId }: { assignmentId: string }) {
-  return (
-    <div className="mb-4">
-      <p className="text-xs text-slate-400 mb-2">
-        Allowed: PDF, JPG, PNG, TIFF, DOC, DOCX — max 25 MB
-      </p>
-      <form
-        action={`/api/assignments/${assignmentId}/documents`}
-        method="POST"
-        encType="multipart/form-data"
-        className="flex items-center gap-2"
-      >
-        <input
-          type="file"
-          name="file"
-          accept=".pdf,.jpg,.jpeg,.png,.tiff,.doc,.docx"
-          className="text-xs text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-700"
-        />
-        <button
-          type="submit"
-          className="rounded bg-blue-700 px-3 py-1 text-xs font-medium text-white hover:bg-blue-800"
-        >
-          Upload
-        </button>
-      </form>
     </div>
   );
 }

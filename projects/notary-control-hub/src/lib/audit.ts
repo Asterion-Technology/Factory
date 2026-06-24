@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 interface AuditParams {
@@ -29,7 +30,7 @@ export async function writeAuditLog({
       action,
       entityType,
       entityId,
-      metadata,
+      metadata: metadata as Prisma.InputJsonValue | undefined,
       ipAddress,
       userAgent,
     },

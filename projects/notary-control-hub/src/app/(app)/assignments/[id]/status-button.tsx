@@ -18,6 +18,9 @@ export function StatusTransitionButton({
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
+    if (status === "CANCELLED") {
+      if (!confirm("Cancel this assignment? This cannot be undone.")) return;
+    }
     setLoading(true);
     try {
       await fetch(`/api/assignments/${assignmentId}/status`, {
