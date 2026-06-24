@@ -2,44 +2,46 @@
 
 ## Out-of-Scope Issues Found
 
-### Notary Control Hub (AST-42 scaffold)
+### Notary Control Hub
 
 #### Security
-- [ ] Document upload currently uses native form POST — should be replaced with a client-side fetch with CSRF token validation in a future iteration
-  - Location: `projects/notary-control-hub/src/app/(app)/assignments/[id]/page.tsx` DocumentUploader
-  - Risk: Low (Clerk protects the API endpoint, Next.js App Router mitigates most CSRF risk)
-  - Suggested fix: Migrate to a client component with fetch-based upload for better error handling
-
 - [ ] Presigned URL redirect in `/api/documents/[id]` GET exposes the R2 URL in the Location header — browser sees the signed URL
   - Location: `projects/notary-control-hub/src/app/api/documents/[id]/route.ts`
   - Risk: Low (URLs are short-lived 15 min TTL) but could be captured in logs
   - Suggested fix: Consider streaming the file through the server rather than redirecting for higher-sensitivity docs
 
+- [ ] Windows OS-level env vars silently override `.env` and `.env.local` — any env var set at the user or system level in Windows will always win over `.env` files
+  - Location: `projects/notary-control-hub/src/lib/prisma.ts`, `next.config.ts` (workaround applied for DATABASE_URL)
+  - Risk: Wrong credentials used in dev without any error — silent misconfiguration
+  - Suggested fix: Document this Windows-specific gotcha in `bootstrap/first-run.md`; extend the fs.readFileSync workaround to all critical env vars (R2, Clerk, etc.) or remove stale OS-level vars via Control Panel
+
 #### Missing Features / Incomplete Flows
-- [ ] Contacts — `/contacts/new` page and `/contacts/[id]` detail page not yet built (AST-46)
-  - Path: `src/app/(app)/contacts/new/page.tsx`, `src/app/(app)/contacts/[id]/page.tsx`
-- [ ] Invoice detail page `/invoices/[id]` not yet built (AST-47)
-  - Path: `src/app/(app)/invoices/[id]/page.tsx`
-- [ ] PDF export for invoices not yet implemented (AST-47)
-- [ ] Invoice new page `/invoices/new` not yet built (AST-47)
+- [ ] Invoice detail page `/invoices/[id]` not yet built
+  - Path: `projects/notary-control-hub/src/app/(app)/invoices/[id]/page.tsx`
+- [ ] Invoice create page `/invoices/new` not yet built
+  - Path: `projects/notary-control-hub/src/app/(app)/invoices/new/`
+- [ ] PDF export for invoices not yet implemented
 - [ ] Webhook for Clerk user creation not yet built — `getOrCreateDbUser` creates user lazily on first request
-  - Location: `src/lib/auth.ts`
+  - Location: `projects/notary-control-hub/src/lib/auth.ts`
   - Suggested fix: Add `/api/webhooks/clerk` route to handle `user.created` event
+- [ ] Communication log on assignment detail — currently only accessible from contact detail; an assignment's own comm log view is missing
+  - Path: `projects/notary-control-hub/src/app/(app)/assignments/[id]/page.tsx`
 
 #### Technical Debt
 - [ ] `generateInvoiceNumber()` in `src/app/api/invoices/route.ts` uses random numbers — not guaranteed unique
   - Location: `projects/notary-control-hub/src/app/api/invoices/route.ts`
   - Suggested fix: Use a DB sequence or year+sequential counter per user
-
-- [ ] StatusBadge component is duplicated across assignments list page and assignment detail page — should be extracted to a shared component
-  - Location: `src/app/(app)/assignments/page.tsx` and `src/app/(app)/assignments/[id]/page.tsx`
+- [ ] R2 bucket name in `.env` is `"scrap"` — rename to a purpose-specific bucket (e.g., `notary-documents`) before production
+  - Location: `projects/notary-control-hub/.env` — `R2_BUCKET_NAME`
+  - Suggested fix: Create a dedicated R2 bucket; update `.env` and Railway secrets
 
 #### Future Enhancements
-- [ ] Email invoice via Resend (AST-47)
+- [ ] Email invoice via Resend
 - [ ] RON integration — platform-specific workflow support
 - [ ] Audit log viewer page for user to review their own activity
-- [ ] Settings page profile editing (notary state, stamp/E&O expiry)
+- [ ] Settings page — profile editing (notary state, stamp/E&O expiry dates)
 - [ ] Export assignment history as CSV
+- [ ] Checklist template management UI — currently templates can only be applied via API
 
 ### Future Enhancements
 
