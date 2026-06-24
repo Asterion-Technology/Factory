@@ -9,7 +9,7 @@ export default async function NewInvoicePage() {
     prisma.contact.findMany({
       where: { userId: user.id },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, type: true, company: true },
+      select: { id: true, name: true, type: true, company: true, paymentTerms: true },
     }),
     prisma.assignment.findMany({
       where: { userId: user.id, status: "COMPLETED", invoice: { is: null } },

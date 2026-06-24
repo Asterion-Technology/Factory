@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CONTACT_TYPE_LABELS, ASSIGNMENT_TYPE_LABELS } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 
-type Contact = { id: string; name: string; type: string; company: string | null };
+type Contact = { id: string; name: string; type: string; company: string | null; paymentTerms: string | null };
 type Assignment = {
   id: string;
   borrowerName: string | null;
@@ -17,6 +17,17 @@ type LineItem = { _key: string; description: string; quantity: string; unitPrice
 
 function newLineItem(): LineItem {
   return { _key: crypto.randomUUID(), description: "", quantity: "1", unitPrice: "0", subtotal: "0" };
+}
+
+function parseDays(paymentTerms: string | null): number | null {
+  if (!paymentTerms) return null;
+  const m = paymentTerms.match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
+
+function addDaysToDate(base: Date, days: number): string {
+  const d = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 10);
 }
 
 export function NewInvoiceForm({
@@ -36,6 +47,28 @@ export function NewInvoiceForm({
   const [additionalFees, setAdditionalFees] = useState("");
   const [total, setTotal] = useState("0.00");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [dueAt, setDueAt] = useState("");
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
+
+  function computeDueDate(contactId: string, assignmentId: string) {
+    const contact = contacts.find((c) => c.id === contactId);
+    const days = parseDays(contact?.paymentTerms ?? null);
+    if (!days) { setDueAt(""); return; }
+    const assignment = assignments.find((a) => a.id === assignmentId);
+    const base = assignment?.appointmentAt ? new Date(assignment.appointmentAt) : new Date();
+    setDueAt(addDaysToDate(base, days));
+  }
+
+  function handleContactChange(contactId: string) {
+    setSelectedContactId(contactId);
+    computeDueDate(contactId, selectedAssignmentId);
+  }
+
+  function handleAssignmentChange(assignmentId: string) {
+    setSelectedAssignmentId(assignmentId);
+    computeDueDate(selectedContactId, assignmentId);
+  }
 
   const recalcTotal = useCallback(
     (f: string, t: string, p: string, a: string, items: LineItem[]) => {
@@ -101,17 +134,16 @@ export function NewInvoiceForm({
     setError(null);
 
     const form = new FormData(e.currentTarget);
-    const dueDateRaw = form.get("dueAt") as string;
 
     const body: Record<string, unknown> = {
       total: parseFloat(total) || 0,
-      contactId: (form.get("contactId") as string) || undefined,
-      assignmentId: (form.get("assignmentId") as string) || undefined,
+      contactId: selectedContactId || undefined,
+      assignmentId: selectedAssignmentId || undefined,
       fee: parseFloat(fee) || undefined,
       travelFee: parseFloat(travelFee) || undefined,
       printingFee: parseFloat(printingFee) || undefined,
       additionalFees: parseFloat(additionalFees) || undefined,
-      dueAt: dueDateRaw ? new Date(dueDateRaw).toISOString() : undefined,
+      dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
       notes: (form.get("notes") as string) || undefined,
       paymentNotes: (form.get("paymentNotes") as string) || undefined,
     };
@@ -168,12 +200,15 @@ export function NewInvoiceForm({
           <select
             id="contactId"
             name="contactId"
+            value={selectedContactId}
+            onChange={(e) => handleContactChange(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">— None —</option>
             {contacts.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({CONTACT_TYPE_LABELS[c.type] ?? c.type})
+                {c.paymentTerms ? ` · ${c.paymentTerms}` : ""}
               </option>
             ))}
           </select>
@@ -185,6 +220,8 @@ export function NewInvoiceForm({
           <select
             id="assignmentId"
             name="assignmentId"
+            value={selectedAssignmentId}
+            onChange={(e) => handleAssignmentChange(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">— None —</option>
@@ -318,11 +355,18 @@ export function NewInvoiceForm({
         <div>
           <label className="block text-sm font-medium text-slate-700" htmlFor="dueAt">
             Due Date
+            {dueAt && (
+              <span className="ml-2 text-xs font-normal text-blue-600">
+                auto-calculated from payment terms
+              </span>
+            )}
           </label>
           <input
             type="date"
             id="dueAt"
             name="dueAt"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
