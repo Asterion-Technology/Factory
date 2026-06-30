@@ -239,9 +239,32 @@ if [[ -n "$LANGFUSE_PUBLIC_KEY" && -n "$LANGFUSE_SECRET_KEY" ]]; then
       -H "Accept: application/json" 2>/dev/null) || true
 
     if [[ -n "$USAGE" ]]; then
-      # Sum across all days: data[].totalCost and data[].totalTokens
-      TOTAL_TOKENS=$(echo "$USAGE" | grep -o '"totalTokens":[0-9]*' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}' || echo "0")
-      TOTAL_COST=$(echo "$USAGE" | grep -o '"totalCost":[0-9.]*' | grep -o '[0-9.]*' | awk '{s+=$1} END {printf "%.4f",s}' || echo "0")
+      # Sum across all days: data[].totalCost and data[].totalTokens.
+      # Parsed with node rather than grep — under `set -o pipefail`, grep's
+      # normal "no match" exit (e.g. an empty data[] for the period) makes
+      # the whole pipeline report failure even after a later stage (awk)
+      # already produced valid output, so the `|| echo "0"` fallback fires
+      # *in addition* to that output instead of replacing it, leaving
+      # multi-line values like $'0\n0' that break arithmetic expansion.
+      USAGE_STATS=$(echo "$USAGE" | node -e '
+        let input = "";
+        process.stdin.on("data", (d) => { input += d; });
+        process.stdin.on("end", () => {
+          try {
+            const days = (JSON.parse(input).data || []);
+            let tokens = 0, cost = 0;
+            for (const day of days) {
+              tokens += Number(day.totalTokens) || 0;
+              cost += Number(day.totalCost) || 0;
+            }
+            process.stdout.write(`${tokens} ${cost.toFixed(4)}`);
+          } catch {
+            process.stdout.write("0 0.0000");
+          }
+        });
+      ' 2>/dev/null || echo "0 0.0000")
+      TOTAL_TOKENS=$(echo "$USAGE_STATS" | awk '{print $1}')
+      TOTAL_COST=$(echo "$USAGE_STATS" | awk '{print $2}')
       # Approximate split: Claude = 60%, Codex = 25%, Ollama = 15%
       CLAUDE_TOKENS=$(( TOTAL_TOKENS * 60 / 100 ))
       CODEX_TOKENS=$(( TOTAL_TOKENS * 25 / 100 ))
