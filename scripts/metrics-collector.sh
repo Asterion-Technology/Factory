@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Collect factory metrics from GitHub, Langfuse, and git history
 # Writes dashboards/observation-deck/metrics.json for the Observation Deck
-# Usage: bash scripts/metrics-collector.sh [--repo owner/repo] [--days 7]
+# Usage: bash scripts/metrics-collector.sh [--repo owner/repo ...] [--days 7]
+#   --repo may be passed multiple times to track several repos; their PR
+#   metrics are aggregated for the headline numbers and also broken out
+#   per-repo under prs.by_repo. GITHUB_TOKEN must have read access to every
+#   repo passed — GitHub Actions' auto-generated secrets.GITHUB_TOKEN only
+#   covers the repo the workflow runs in, so cross-repo automated collection
+#   needs a separate token with access to the other repo(s).
 set -euo pipefail
 
 FACTORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,27 +25,33 @@ LANGFUSE_SECRET_KEY="${LANGFUSE_SECRET_KEY:-}"
 LANGFUSE_HOST="${LANGFUSE_HOST:-${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}}"
 LANGFUSE_CONNECTED=false
 DAYS=7
-REPO=""
+REPOS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --repo) REPO="$2"; shift 2 ;;
+    --repo) REPOS+=("$2"); shift 2 ;;
     --days) DAYS="$2"; shift 2 ;;
     --output) OUTPUT="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 
-# Auto-detect repo from git remote if not specified
-if [[ -z "$REPO" ]]; then
-  REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]//;s/\.git$//' || echo "")
+# Auto-detect repo from git remote if none were passed
+if [[ ${#REPOS[@]} -eq 0 ]]; then
+  AUTO_REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]//;s/\.git$//' || echo "")
+  [[ -n "$AUTO_REPO" ]] && REPOS=("$AUTO_REPO")
 fi
+
+# Single-repo compat: the security-gate status section below checks the CI
+# state of the primary repo this dashboard lives in — it doesn't (yet)
+# aggregate across multiple repos like the PR metrics above do.
+REPO="${REPOS[0]:-}"
 
 SINCE_DATE=$(date -d "${DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-"${DAYS}d" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 echo "── Collecting factory metrics ──────────────────────"
-echo "Repo: ${REPO:-unknown}"
+echo "Repos: ${REPOS[*]:-unknown}"
 echo "Period: last ${DAYS} days"
 echo ""
 
@@ -49,39 +61,46 @@ OPEN_PRS=0
 AVG_CYCLE_HOURS=0
 CI_PASS_RATE=0
 CODEX_BLOCKS=0
+BY_REPO_JSON_PARTS=()
 
-if [[ -n "$GITHUB_TOKEN" && -n "$REPO" ]]; then
-  echo "[collecting] GitHub PR metrics..."
+# GitHub's API is pretty-printed JSON ("key": value, with a space after the
+# colon) — naive no-space regexes like '"total_count":[0-9]*' silently
+# zero-width-match and return empty strings instead of failing loudly, which
+# is why every PR metric used to report as 0 even when the API call itself
+# succeeded. Parse properly with node instead of grep for every count below.
+json_total_count() {
+  node -e '
+    let input = "";
+    process.stdin.on("data", (d) => { input += d; });
+    process.stdin.on("end", () => {
+      try { process.stdout.write(String(JSON.parse(input).total_count ?? 0)); }
+      catch { process.stdout.write("0"); }
+    });
+  ' 2>/dev/null || echo "0"
+}
 
-  # GitHub's API is pretty-printed JSON ("key": value, with a space after the
-  # colon) — naive no-space regexes like '"total_count":[0-9]*' silently
-  # zero-width-match and return empty strings instead of failing loudly, which
-  # is why every PR metric used to report as 0 even when the API call itself
-  # succeeded. Parse properly with node instead of grep for every count below.
-  json_total_count() {
-    node -e '
-      let input = "";
-      process.stdin.on("data", (d) => { input += d; });
-      process.stdin.on("end", () => {
-        try { process.stdout.write(String(JSON.parse(input).total_count ?? 0)); }
-        catch { process.stdout.write("0"); }
-      });
-    ' 2>/dev/null || echo "0"
-  }
+# Collects PR metrics for one repo. Prints 7 space-separated numbers to
+# stdout: merged open cycle_total_hours cycle_pr_count success_runs
+# concluded_runs codex_blocks — left raw (unaveraged) so the caller can sum
+# across repos before computing final averages/percentages. All logging
+# goes to stderr so it doesn't pollute the captured values.
+collect_repo_pr_metrics() {
+  local repo="$1"
+  local merged=0 open=0 cycle_hours=0 cycle_count=0 success_runs=0 concluded_runs=0 codex_blocks=0
 
-  # Merged PRs this week
-  MERGED_RESPONSE=$(curl -sf \
-    "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:>=${SINCE_DATE}&per_page=100" \
+  local merged_response
+  merged_response=$(curl -sf \
+    "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:merged+merged:>=${SINCE_DATE}&per_page=100" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
 
-  if [[ -n "$MERGED_RESPONSE" ]]; then
-    MERGED_PRS=$(echo "$MERGED_RESPONSE" | json_total_count)
+  if [[ -n "$merged_response" ]]; then
+    merged=$(echo "$merged_response" | json_total_count)
 
-    # Average cycle time (created → closed) in hours, across merged PRs in this page.
-    # closed_at is used as a merge-time proxy — exact for PRs merged via the normal
-    # merge button/API, which covers the overwhelming majority of cases.
-    CYCLE_STATS=$(echo "$MERGED_RESPONSE" | node -e '
+    # closed_at is used as a merge-time proxy — exact for PRs merged via the
+    # normal merge button/API, which covers the overwhelming majority of cases.
+    local cycle_stats
+    cycle_stats=$(echo "$merged_response" | node -e '
       let input = "";
       process.stdin.on("data", (d) => { input += d; });
       process.stdin.on("end", () => {
@@ -102,39 +121,37 @@ if [[ -n "$GITHUB_TOKEN" && -n "$REPO" ]]; then
         }
       });
     ' 2>/dev/null || echo "0 0")
-    CYCLE_TOTAL_HOURS=$(echo "$CYCLE_STATS" | awk '{print $1}')
-    CYCLE_PR_COUNT=$(echo "$CYCLE_STATS" | awk '{print $2}')
-    if [[ "${CYCLE_PR_COUNT:-0}" -gt 0 ]] 2>/dev/null; then
-      AVG_CYCLE_HOURS=$(echo "scale=1; ${CYCLE_TOTAL_HOURS} / ${CYCLE_PR_COUNT}" | bc 2>/dev/null || echo "0")
-    fi
+    cycle_hours=$(echo "$cycle_stats" | awk '{print $1}')
+    cycle_count=$(echo "$cycle_stats" | awk '{print $2}')
   fi
 
-  # Open PRs — same search-API pattern as merged PRs above, for a real count
-  # (previously fetched via a HEAD request whose response was never parsed).
-  OPEN_RESPONSE=$(curl -sf \
-    "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:open&per_page=1" \
+  # Same search-API pattern as merged PRs above, for a real count (previously
+  # fetched via a HEAD request whose response was never parsed).
+  local open_response
+  open_response=$(curl -sf \
+    "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:open&per_page=1" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
-  if [[ -n "$OPEN_RESPONSE" ]]; then
-    OPEN_PRS=$(echo "$OPEN_RESPONSE" | json_total_count)
-  fi
+  [[ -n "$open_response" ]] && open=$(echo "$open_response" | json_total_count)
 
   # Count Codex block verdicts in PR comments (look for "### Verdict\nBlock")
-  if [[ "${MERGED_PRS:-0}" -gt 0 ]] 2>/dev/null; then
-    CODEX_BLOCKS=$(curl -sf \
-      "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:>=${SINCE_DATE}+in:comments+%22Verdict%0ABlock%22&per_page=1" \
+  if [[ "${merged:-0}" -gt 0 ]] 2>/dev/null; then
+    codex_blocks=$(curl -sf \
+      "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:merged+merged:>=${SINCE_DATE}+in:comments+%22Verdict%0ABlock%22&per_page=1" \
       -H "Authorization: Bearer ${GITHUB_TOKEN}" \
       -H "Accept: application/vnd.github+json" 2>/dev/null | json_total_count)
   fi
 
   # CI check run stats (sample runs created in the period)
-  RUN_RESPONSE=$(curl -sf \
-    "https://api.github.com/repos/${REPO}/actions/runs?per_page=20&created=>=${SINCE_DATE}" \
+  local run_response
+  run_response=$(curl -sf \
+    "https://api.github.com/repos/${repo}/actions/runs?per_page=20&created=>=${SINCE_DATE}" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
 
-  if [[ -n "$RUN_RESPONSE" ]]; then
-    CI_STATS=$(echo "$RUN_RESPONSE" | node -e '
+  if [[ -n "$run_response" ]]; then
+    local ci_stats
+    ci_stats=$(echo "$run_response" | node -e '
       let input = "";
       process.stdin.on("data", (d) => { input += d; });
       process.stdin.on("end", () => {
@@ -148,17 +165,60 @@ if [[ -n "$GITHUB_TOKEN" && -n "$REPO" ]]; then
         }
       });
     ' 2>/dev/null || echo "0 0")
-    SUCCESS_RUNS=$(echo "$CI_STATS" | awk '{print $1}')
-    CONCLUDED_RUNS=$(echo "$CI_STATS" | awk '{print $2}')
-    if [[ "${CONCLUDED_RUNS:-0}" -gt 0 ]] 2>/dev/null; then
-      CI_PASS_RATE=$(( SUCCESS_RUNS * 100 / CONCLUDED_RUNS ))
-    fi
+    success_runs=$(echo "$ci_stats" | awk '{print $1}')
+    concluded_runs=$(echo "$ci_stats" | awk '{print $2}')
   fi
 
-  echo "[ok]  GitHub: ${MERGED_PRS} merged PRs, ${OPEN_PRS} open, CI pass rate ~${CI_PASS_RATE}%"
+  echo "[ok]  ${repo}: ${merged} merged, ${open} open, ${concluded_runs} CI runs sampled" >&2
+  echo "${merged:-0} ${open:-0} ${cycle_hours:-0} ${cycle_count:-0} ${success_runs:-0} ${concluded_runs:-0} ${codex_blocks:-0}"
+}
+
+if [[ -n "$GITHUB_TOKEN" && ${#REPOS[@]} -gt 0 ]]; then
+  echo "[collecting] GitHub PR metrics..."
+
+  TOTAL_CYCLE_HOURS=0
+  TOTAL_CYCLE_COUNT=0
+  TOTAL_SUCCESS_RUNS=0
+  TOTAL_CONCLUDED_RUNS=0
+
+  for repo in "${REPOS[@]}"; do
+    read -r r_merged r_open r_cycle_hours r_cycle_count r_success r_concluded r_codex \
+      <<< "$(collect_repo_pr_metrics "$repo")"
+
+    MERGED_PRS=$(( MERGED_PRS + r_merged ))
+    OPEN_PRS=$(( OPEN_PRS + r_open ))
+    TOTAL_CYCLE_COUNT=$(( TOTAL_CYCLE_COUNT + r_cycle_count ))
+    TOTAL_SUCCESS_RUNS=$(( TOTAL_SUCCESS_RUNS + r_success ))
+    TOTAL_CONCLUDED_RUNS=$(( TOTAL_CONCLUDED_RUNS + r_concluded ))
+    CODEX_BLOCKS=$(( CODEX_BLOCKS + r_codex ))
+    TOTAL_CYCLE_HOURS=$(awk -v a="$TOTAL_CYCLE_HOURS" -v b="$r_cycle_hours" 'BEGIN{printf "%.10f", a+b}' 2>/dev/null || echo "$TOTAL_CYCLE_HOURS")
+
+    r_avg_cycle="0"
+    if [[ "${r_cycle_count:-0}" -gt 0 ]] 2>/dev/null; then
+      r_avg_cycle=$(awk -v h="$r_cycle_hours" -v c="$r_cycle_count" 'BEGIN{printf "%.1f", h/c}' 2>/dev/null || echo "0")
+    fi
+    r_ci_pass_rate=0
+    if [[ "${r_concluded:-0}" -gt 0 ]] 2>/dev/null; then
+      r_ci_pass_rate=$(( r_success * 100 / r_concluded ))
+    fi
+
+    BY_REPO_JSON_PARTS+=("{\"repo\":\"${repo}\",\"merged_this_week\":${r_merged:-0},\"open\":${r_open:-0},\"avg_cycle_hours\":${r_avg_cycle},\"ci_pass_rate\":${r_ci_pass_rate},\"codex_blocks\":${r_codex:-0}}")
+  done
+
+  if [[ "${TOTAL_CYCLE_COUNT:-0}" -gt 0 ]] 2>/dev/null; then
+    AVG_CYCLE_HOURS=$(awk -v h="$TOTAL_CYCLE_HOURS" -v c="$TOTAL_CYCLE_COUNT" 'BEGIN{printf "%.1f", h/c}' 2>/dev/null || echo "0")
+  fi
+  if [[ "${TOTAL_CONCLUDED_RUNS:-0}" -gt 0 ]] 2>/dev/null; then
+    CI_PASS_RATE=$(( TOTAL_SUCCESS_RUNS * 100 / TOTAL_CONCLUDED_RUNS ))
+  fi
+
+  echo "[ok]  GitHub (combined): ${MERGED_PRS} merged PRs, ${OPEN_PRS} open, CI pass rate ~${CI_PASS_RATE}%"
 else
   echo "[warn] GITHUB_TOKEN or REPO not set — skipping GitHub metrics"
 fi
+
+# Join the per-repo JSON objects into a JSON array string for the output template
+BY_REPO_JSON="[$(IFS=,; echo "${BY_REPO_JSON_PARTS[*]:-}")]"
 
 # ── Security gate status (from latest CI run) ──────────────────────────────────
 echo "[collecting] Security gate status..."
@@ -321,6 +381,9 @@ if [[ -f "$MCP_FILE" ]]; then
   " "$MCP_FILE_NODE" 2>/dev/null || echo "[]")
 fi
 
+# Build a JSON array of tracked repo names
+REPOS_JSON=$(node -e "console.log(JSON.stringify(process.argv.slice(1)))" "${REPOS[@]}" 2>/dev/null || echo "[]")
+
 # ── Write metrics.json ─────────────────────────────────────────────────────────
 mkdir -p "$(dirname "$OUTPUT")"
 
@@ -329,6 +392,7 @@ cat > "$OUTPUT" <<JSON
   "updated_at": "${NOW}",
   "period_days": ${DAYS},
   "repo": "${REPO}",
+  "repos": ${REPOS_JSON},
   "workforce": {
     "claude": ${CLAUDE_PCT},
     "codex": ${CODEX_PCT},
@@ -349,7 +413,8 @@ cat > "$OUTPUT" <<JSON
     "open": ${OPEN_PRS},
     "avg_cycle_hours": ${AVG_CYCLE_HOURS},
     "ci_pass_rate": ${CI_PASS_RATE},
-    "codex_blocks": ${CODEX_BLOCKS}
+    "codex_blocks": ${CODEX_BLOCKS},
+    "by_repo": ${BY_REPO_JSON}
   },
   "security": {
     "gitleaks": "${GITLEAKS_STATUS}",
@@ -367,7 +432,7 @@ cat > "$OUTPUT" <<JSON
     "avg_reduction": ${RTK_AVG_REDUCTION},
     "tokens_saved": ${RTK_TOKENS_SAVED},
     "sessions": ${RTK_SESSIONS},
-    "cost_avoided": $(echo "scale=4; ${RTK_TOKENS_SAVED} * 0.000003" | bc 2>/dev/null || echo "0")
+    "cost_avoided": $(awk -v t="$RTK_TOKENS_SAVED" 'BEGIN{printf "%.4f", t*0.000003}' 2>/dev/null || echo "0")
   },
   "mcp_servers": ${MCP_JSON}
 }

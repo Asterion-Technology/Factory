@@ -561,14 +561,21 @@
       return;
     }
     const p = data.prs;
+    const byRepo = Array.isArray(p.by_repo) ? p.by_repo : [];
+    const byRepoRows = byRepo.length > 1 ? byRepo.map((r) => `
+      <div class="metric-row">
+        <span class="metric-label">${r.repo}</span>
+        <span class="metric-value">${r.merged_this_week || 0} merged &middot; ${r.open || 0} open</span>
+      </div>`).join('') : '';
     el.innerHTML = `
       <div class="numbers-grid">
         <div class="number-block"><div class="big-number ok">${p.merged_this_week || 0}</div><div class="sub-label">Merged this week</div></div>
         <div class="number-block"><div class="big-number warn">${p.open || 0}</div><div class="sub-label">Open PRs</div></div>
       </div>
-      <div class="metric-row"><span class="metric-label">Avg cycle time</span><span class="metric-value">${p.avg_cycle_hours || '—'}h</span></div>
-      <div class="metric-row"><span class="metric-label">CI pass rate</span><span class="metric-value ok">${p.ci_pass_rate || '—'}%</span></div>
-      <div class="metric-row"><span class="metric-label">Codex blocks</span><span class="metric-value ${(p.codex_blocks || 0) > 0 ? 'fail' : 'ok'}">${p.codex_blocks || 0}</span></div>`;
+      <div class="metric-row"><span class="metric-label">Avg cycle time</span><span class="metric-value">${p.avg_cycle_hours ?? '—'}h</span></div>
+      <div class="metric-row"><span class="metric-label">CI pass rate</span><span class="metric-value ok">${p.ci_pass_rate ?? '—'}%</span></div>
+      <div class="metric-row"><span class="metric-label">Codex blocks</span><span class="metric-value ${(p.codex_blocks || 0) > 0 ? 'fail' : 'ok'}">${p.codex_blocks || 0}</span></div>
+      ${byRepoRows}`;
   }
 
   function renderSecurity(data) {
