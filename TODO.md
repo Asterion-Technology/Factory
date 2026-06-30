@@ -67,9 +67,15 @@
   - Risk: id.me API versioning and auth scope may differ by environment
   - Suggested fix: Validate against id.me developer documentation
 
-- [ ] Observation Deck live data wiring — connect real metrics to dashboard
-  - Value: Real-time visibility into agent workload, cost, and PR velocity
-  - Suggested implementation: Implement `loadMetrics()` in `dashboards/observation-deck/index.html` to call a local metrics API backed by Langfuse + GitHub API
+- [x] Observation Deck live data wiring — AST-48, partially complete
+  - Real-time tool/MCP event feed via `events.jsonl` (3s polling) ✅
+  - Session stats, MCP call counts, RTK live events ✅
+  - `scripts/log-tool-event.js` PostToolUse hook + `scripts/serve-dashboard.sh` ✅
+  - **Remaining: wire PostToolUse hook** — add to `.claude/settings.json`:
+    ```json
+    "PostToolUse": [{ "matcher": ".*", "hooks": [{ "type": "command", "command": "node d:/REPO/Factory/scripts/log-tool-event.js" }] }]
+    ```
+  - **Remaining: Langfuse cost wiring** — set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` env vars (see below)
 
 - [ ] Langfuse telemetry wiring — connect LiteLLM → Langfuse for cost and token tracking
   - Value: Populates Observation Deck cost metrics; enables RTK savings reporting and per-model cost attribution

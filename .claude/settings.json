@@ -64,17 +64,14 @@
     ]
   },
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '[factory] Tool use logged'"
-          }
-        ]
-      }
+"PostToolUse": [
+  {
+    "matcher": ".*",
+    "hooks": [
+      { "type": "command", "command": "node d:/REPO/Factory/scripts/log-tool-event.js" }
     ]
+  }
+]
   },
   "env": {
     "FACTORY_ROOT": "${workspaceFolder}",

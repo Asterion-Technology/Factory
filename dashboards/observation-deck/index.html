@@ -47,25 +47,41 @@
       letter-spacing: 0.02em;
     }
 
-    .status-line {
+    .header-right {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      color: var(--text-muted);
+      gap: 16px;
     }
 
-    .dot {
+    .conn-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .conn-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--green);
-      animation: pulse 2s infinite;
+      background: var(--text-muted);
+    }
+    .conn-dot.live   { background: var(--green); animation: pulse 1.5s infinite; }
+    .conn-dot.stale  { background: var(--yellow); }
+    .conn-dot.off    { background: var(--red); }
+
+    #last-updated {
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      50% { opacity: 0.3; }
     }
 
     .grid {
@@ -81,9 +97,8 @@
       padding: 16px;
     }
 
-    .card.wide {
-      grid-column: span 2;
-    }
+    .card.wide  { grid-column: span 2; }
+    .card.full  { grid-column: 1 / -1; }
 
     .card-title {
       font-size: 11px;
@@ -92,6 +107,27 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--green);
+      background: rgba(63,185,80,.1);
+      padding: 1px 6px;
+      border-radius: 10px;
+      letter-spacing: 0.05em;
+    }
+    .live-pill-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s infinite;
     }
 
     .metric-row {
@@ -101,11 +137,8 @@
       padding: 6px 0;
       border-bottom: 1px solid var(--border);
     }
-
     .metric-row:last-child { border-bottom: none; }
-
     .metric-label { color: var(--text-muted); }
-
     .metric-value {
       font-weight: 600;
       font-variant-numeric: tabular-nums;
@@ -126,10 +159,9 @@
       font-size: 11px;
       font-weight: 600;
     }
-
-    .badge.pass { background: rgba(63,185,80,.15); color: var(--green); }
+    .badge.pass { background: rgba(63,185,80,.15);  color: var(--green); }
     .badge.skip { background: rgba(125,133,144,.12); color: var(--text-muted); }
-    .badge.fail { background: rgba(248,81,73,.15); color: var(--red); }
+    .badge.fail { background: rgba(248,81,73,.15);  color: var(--red); }
 
     .chart-container {
       position: relative;
@@ -152,11 +184,7 @@
       color: var(--text-muted);
     }
 
-    .legend-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
     .big-number {
       font-size: 28px;
@@ -166,10 +194,7 @@
       margin-bottom: 4px;
     }
 
-    .sub-label {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
+    .sub-label { font-size: 11px; color: var(--text-muted); }
 
     .numbers-grid {
       display: grid;
@@ -188,9 +213,70 @@
       text-align: center;
     }
 
-    #last-updated {
+    /* ── Live Activity feed ──────────────────────────────────────────────── */
+    .event-list { display: flex; flex-direction: column; }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 52px 108px 180px 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+    .event-row:last-child { border-bottom: none; }
+
+    .event-ts      { color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .event-server  { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-tool    { color: var(--blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-summary { color: var(--text-muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── MCP server tiles ────────────────────────────────────────────────── */
+    .mcp-tile {
+      padding: 8px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .mcp-tile-name { font-weight: 600; margin-bottom: 6px; font-size: 12px; }
+    .mcp-tile-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mcp-calls {
       font-size: 10px;
       color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .mcp-calls.has-calls { color: var(--blue); font-weight: 600; }
+
+    /* ── RTK live events ─────────────────────────────────────────────────── */
+    .rtk-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 12px 0;
+    }
+    .rtk-event-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 11px;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    .rtk-event-row:last-child { border-bottom: none; }
+    .rtk-event-left  { color: var(--text-muted); }
+    .rtk-event-right { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    #last-updated { font-size: 10px; color: var(--text-muted); }
+
+    #mcpStatus {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
     }
   </style>
 </head>
@@ -198,8 +284,11 @@
 
 <header>
   <h1>Factory Observation Deck</h1>
-  <div class="status-line">
-    <span class="dot"></span>
+  <div class="header-right">
+    <span class="conn-badge">
+      <span class="conn-dot" id="liveConnDot"></span>
+      <span id="liveConnLabel">events</span>
+    </span>
     <span id="last-updated">Loading...</span>
   </div>
 </header>
@@ -223,6 +312,17 @@
     </div>
   </div>
 
+  <!-- Session Stats (live) -->
+  <div class="card">
+    <div class="card-title">
+      Session Stats
+      <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
+    </div>
+    <div id="sessionStats">
+      <div class="no-data">Waiting for events…</div>
+    </div>
+  </div>
+
   <!-- PR Velocity -->
   <div class="card">
     <div class="card-title">PR Velocity</div>
@@ -239,26 +339,46 @@
     </div>
   </div>
 
-  <!-- MCP Server Status -->
-  <div class="card wide">
-    <div class="card-title">MCP Server Status</div>
-    <div id="mcpStatus" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:8px; margin-top:4px;">
-      <div class="no-data">Loading MCP config...</div>
+  <!-- Live Tool Activity (full-width) -->
+  <div class="card full">
+    <div class="card-title">
+      Live Tool Activity
+      <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
+    </div>
+    <div id="liveActivity">
+      <div class="no-data">
+        Waiting for tool events — run <code>bash scripts/serve-dashboard.sh</code> and wire the PostToolUse hook (see README).
+      </div>
     </div>
   </div>
 
-  <!-- RTK Compression -->
-  <div class="card">
-    <div class="card-title">RTK Compression</div>
-    <div id="rtkMetrics">
-      <div class="no-data">No sessions recorded yet</div>
+  <!-- MCP Server Status (with live call counts) -->
+  <div class="card wide">
+    <div class="card-title">
+      MCP Server Status
+      <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
     </div>
+    <div id="mcpStatus">
+      <div class="no-data">Loading MCP config…</div>
+    </div>
+  </div>
+
+  <!-- RTK Compression (with live events) -->
+  <div class="card">
+    <div class="card-title">
+      RTK Compression
+      <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
+    </div>
+    <div id="rtkMetrics">
+      <div class="no-data">No RTK sessions recorded yet</div>
+    </div>
+    <div id="rtkEvents"></div>
   </div>
 
 </div>
 
 <script>
-  // ── Color palette ────────────────────────────────────────────────────────
+  // ── Constants ───────────────────────────────────────────────────────────────
   const COLORS = {
     claude:  '#58a6ff',
     codex:   '#bc8cff',
@@ -267,49 +387,133 @@
     other:   '#7d8590',
   };
 
-  // ── Fetch metrics.json (written by a metrics collector script) ───────────
+  const SERVER_COLORS = {
+    linear:       '#f26522',
+    github:       '#7d8590',
+    sentry:       '#f55249',
+    context7:     '#4285f4',
+    railway:      '#7000ff',
+    playwright:   '#2ead33',
+    neon:         '#3ec6a2',
+    mongodb:      '#47a248',
+    figma:        '#ff7262',
+    stripe:       '#635bff',
+    microsoft365: '#0078d4',
+    builtin:      '#58a6ff',
+  };
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let workforceChart = null;
+  let eventCache     = [];   // all parsed events, oldest first
+  let serverConnected = false;
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function relativeTime(ts) {
+    const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (s < 5)    return 'now';
+    if (s < 60)   return `${s}s`;
+    if (s < 3600) return `${Math.floor(s/60)}m`;
+    return `${Math.floor(s/3600)}h`;
+  }
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function serverColor(name) {
+    return SERVER_COLORS[name] || '#7d8590';
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
   async function loadMetrics() {
     try {
       const res = await fetch('./metrics.json');
-      if (!res.ok) throw new Error('Not found');
+      if (!res.ok) throw new Error('not found');
       return await res.json();
     } catch {
       return null;
     }
   }
 
-  // MCP config is embedded in metrics.json by metrics-collector.sh
+  async function loadEvents() {
+    try {
+      const res = await fetch('./events.jsonl');
+      if (!res.ok) {
+        serverConnected = false;
+        return null;
+      }
+      serverConnected = true;
+      const text = await res.text();
+      if (!text.trim()) return [];
+      return text.trim().split('\n')
+        .map(line => { try { return JSON.parse(line); } catch { return null; } })
+        .filter(Boolean);
+    } catch {
+      serverConnected = false;
+      return null;
+    }
+  }
 
-  // ── Render workforce chart ────────────────────────────────────────────────
+  // ── Derived data from events ─────────────────────────────────────────────────
+  function todaysToolEvents(events) {
+    const today = todayStr();
+    return events.filter(e => e.type === 'tool' && e.ts && e.ts.startsWith(today));
+  }
+
+  function todaysRtkEvents(events) {
+    const today = todayStr();
+    return events.filter(e => e.type === 'rtk' && e.ts && e.ts.startsWith(today));
+  }
+
+  function mcpCallCounts(toolEvents) {
+    const counts = {};
+    for (const e of toolEvents) {
+      counts[e.server] = (counts[e.server] || 0) + 1;
+    }
+    return counts;
+  }
+
+  // ── Renderers: metrics.json ──────────────────────────────────────────────────
   function renderWorkforceChart(data) {
     const defaults = { claude: 30, codex: 20, ollama: 35, human: 10, other: 5 };
     const workforce = (data && data.workforce) ? data.workforce : defaults;
 
-    const labels  = Object.keys(workforce);
-    const values  = Object.values(workforce);
-    const colors  = labels.map(l => COLORS[l] || COLORS.other);
+    const labels = Object.keys(workforce);
+    const values = Object.values(workforce);
+    const colors = labels.map(l => COLORS[l] || COLORS.other);
 
     const ctx = document.getElementById('workforceChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }]
-      },
-      options: {
-        cutout: '68%',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => ` ${ctx.label}: ${ctx.parsed}%`
-            }
-          }
-        }
-      }
-    });
 
-    // Legend
+    if (workforceChart) {
+      workforceChart.data.labels = labels;
+      workforceChart.data.datasets[0].data = values;
+      workforceChart.data.datasets[0].backgroundColor = colors;
+      workforceChart.update('none');
+    } else {
+      workforceChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }],
+        },
+        options: {
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: { label: (c) => ` ${c.label}: ${c.parsed}%` },
+            },
+          },
+        },
+      });
+    }
+
     const legendEl = document.getElementById('workforceLegend');
     legendEl.innerHTML = labels.map((l, i) =>
       `<div class="legend-item">
@@ -319,19 +523,27 @@
     ).join('');
   }
 
-  // ── Render cost metrics ───────────────────────────────────────────────────
   function renderCost(data) {
     const el = document.getElementById('costMetrics');
-    if (!data || !data.cost) {
+    const connected = data && data.langfuse_connected;
+    if (!connected) {
       el.innerHTML = `
-        <div class="no-data">Connect Langfuse to see cost data</div>
+        <div class="no-data">Add Langfuse keys to Factory <code>.env</code> and run <code>scripts/metrics-collector.sh</code></div>
         <div style="margin-top:12px">
           <div class="metric-row"><span class="metric-label">Langfuse</span><span class="badge skip">Not connected</span></div>
-          <div class="metric-row"><span class="metric-label">Cost tracking</span><span class="badge skip">Pending Phase 5</span></div>
+          <div class="metric-row"><span class="metric-label">Cost tracking</span><span class="badge skip">Pending setup</span></div>
         </div>`;
       return;
     }
     const c = data.cost;
+    // Connected but no spend yet (new account or zero-cost period)
+    if (!c || c.total === 0) {
+      el.innerHTML = `
+        <div class="metric-row"><span class="metric-label">Langfuse</span><span class="badge pass">Connected</span></div>
+        <div class="metric-row"><span class="metric-label">Cost this week</span><span class="metric-value ok">$0.00</span></div>
+        <div style="margin-top:8px;color:var(--text-muted);font-size:11px">No LLM spend recorded in Langfuse for this period</div>`;
+      return;
+    }
     el.innerHTML = `
       <div class="numbers-grid">
         <div class="number-block"><div class="big-number info">$${(c.total || 0).toFixed(2)}</div><div class="sub-label">Total this week</div></div>
@@ -342,7 +554,6 @@
       <div class="metric-row"><span class="metric-label">Ollama tasks</span><span class="metric-value ok">${(c.ollama_tasks || 0).toLocaleString()}</span></div>`;
   }
 
-  // ── Render PR velocity ────────────────────────────────────────────────────
   function renderPR(data) {
     const el = document.getElementById('prMetrics');
     if (!data || !data.prs) {
@@ -360,35 +571,33 @@
       <div class="metric-row"><span class="metric-label">Codex blocks</span><span class="metric-value ${(p.codex_blocks || 0) > 0 ? 'fail' : 'ok'}">${p.codex_blocks || 0}</span></div>`;
   }
 
-  // ── Render security gates ─────────────────────────────────────────────────
   function renderSecurity(data) {
     const el = document.getElementById('securityGates');
     const gates = (data && data.security) ? data.security : {};
 
     const allGates = [
-      { key: 'gitleaks',  label: 'Gitleaks' },
-      { key: 'semgrep',   label: 'Semgrep SAST' },
-      { key: 'trivy',     label: 'Trivy' },
-      { key: 'snyk',      label: 'Snyk' },
-      { key: 'lint',      label: 'Lint' },
-      { key: 'typecheck', label: 'Type Check' },
-      { key: 'build',     label: 'Build' },
-      { key: 'unit_tests',label: 'Unit Tests' },
-      { key: 'e2e',       label: 'E2E Tests' },
-      { key: 'mcp_config',label: 'MCP Config' },
+      { key: 'gitleaks',   label: 'Gitleaks' },
+      { key: 'semgrep',    label: 'Semgrep SAST' },
+      { key: 'trivy',      label: 'Trivy' },
+      { key: 'snyk',       label: 'Snyk' },
+      { key: 'lint',       label: 'Lint' },
+      { key: 'typecheck',  label: 'Type Check' },
+      { key: 'build',      label: 'Build' },
+      { key: 'unit_tests', label: 'Unit Tests' },
+      { key: 'e2e',        label: 'E2E Tests' },
+      { key: 'mcp_config', label: 'MCP Config' },
     ];
 
     el.innerHTML = allGates.map(g => {
       const status = gates[g.key];
       const badge = status === 'pass' ? '<span class="badge pass">pass</span>'
                   : status === 'fail' ? '<span class="badge fail">fail</span>'
-                  : '<span class="badge skip">—</span>';
+                  :                    '<span class="badge skip">—</span>';
       return `<div class="metric-row"><span class="metric-label">${g.label}</span>${badge}</div>`;
     }).join('');
   }
 
-  // ── Render MCP server status ──────────────────────────────────────────────
-  function renderMCP(data) {
+  function renderMCP(data, callCounts) {
     const el = document.getElementById('mcpStatus');
     const servers = data && data.mcp_servers;
     if (!servers || servers.length === 0) {
@@ -399,56 +608,195 @@
       const badge = s.active
         ? '<span class="badge pass">active</span>'
         : '<span class="badge skip">disabled</span>';
+      const calls = callCounts[s.name] || 0;
+      const callClass = calls > 0 ? 'mcp-calls has-calls' : 'mcp-calls';
+      const callLabel = calls > 0 ? `${calls} call${calls !== 1 ? 's' : ''} today` : '';
       return `
-        <div style="padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--border)">
-          <div style="font-weight:600; margin-bottom:6px">${s.name}</div>
-          ${badge}
+        <div class="mcp-tile">
+          <div class="mcp-tile-name">${escapeHtml(s.name)}</div>
+          <div class="mcp-tile-footer">
+            ${badge}
+            ${callLabel ? `<span class="${callClass}">${callLabel}</span>` : ''}
+          </div>
         </div>`;
     }).join('');
   }
 
-  // ── Render RTK metrics ────────────────────────────────────────────────────
-  function renderRTK(data) {
+  function renderRTK(data, rtkEvts) {
     const el = document.getElementById('rtkMetrics');
-    if (!data || !data.rtk) {
+    const evEl = document.getElementById('rtkEvents');
+
+    // Summary stats: prefer live events, fall back to metrics.json
+    const liveCount = rtkEvts.length;
+    if (liveCount > 0) {
+      const totalIn  = rtkEvts.reduce((a, e) => a + (e.input_tokens  || 0), 0);
+      const totalOut = rtkEvts.reduce((a, e) => a + (e.output_tokens || 0), 0);
+      const avgRed   = Math.round(rtkEvts.reduce((a, e) => a + (e.reduction_pct || 0), 0) / liveCount);
+      const costAvoided = (totalIn - totalOut) * 0.000003;
       el.innerHTML = `
-        <div class="no-data">No RTK sessions logged yet</div>
-        <div style="margin-top:12px">
-          <div class="metric-row"><span class="metric-label">Usage</span><span class="metric-value dim">Pipe output through scripts/rtk-compress.sh</span></div>
+        <div class="numbers-grid">
+          <div class="number-block"><div class="big-number ok">${avgRed}%</div><div class="sub-label">Avg reduction</div></div>
+          <div class="number-block"><div class="big-number info">${(totalIn - totalOut).toLocaleString()}</div><div class="sub-label">Words saved today</div></div>
+        </div>
+        <div class="metric-row"><span class="metric-label">Sessions today</span><span class="metric-value">${liveCount}</span></div>
+        <div class="metric-row"><span class="metric-label">Est. cost avoided</span><span class="metric-value ok">$${costAvoided.toFixed(4)}</span></div>`;
+    } else if (data && data.rtk && data.rtk.avg_reduction > 0) {
+      const r = data.rtk;
+      el.innerHTML = `
+        <div class="numbers-grid">
+          <div class="number-block"><div class="big-number ok">${r.avg_reduction || 0}%</div><div class="sub-label">Avg reduction</div></div>
+          <div class="number-block"><div class="big-number info">${(r.tokens_saved || 0).toLocaleString()}</div><div class="sub-label">Tokens saved</div></div>
+        </div>
+        <div class="metric-row"><span class="metric-label">Sessions this week</span><span class="metric-value">${r.sessions || 0}</span></div>
+        <div class="metric-row"><span class="metric-label">Est. cost avoided</span><span class="metric-value ok">$${(r.cost_avoided || 0).toFixed(2)}</span></div>`;
+    } else {
+      el.innerHTML = `<div class="no-data">No RTK sessions yet — pipe output through <code>scripts/rtk-compress.sh</code></div>`;
+    }
+
+    // Live event list (last 5, newest first)
+    if (rtkEvts.length === 0) {
+      evEl.innerHTML = '';
+      return;
+    }
+    const recent = rtkEvts.slice(-5).reverse();
+    evEl.innerHTML = `
+      <hr class="rtk-divider">
+      ${recent.map(e => `
+        <div class="rtk-event-row">
+          <span class="rtk-event-left">${relativeTime(e.ts)} · ${escapeHtml(e.model || '?')}</span>
+          <span class="rtk-event-right ok">${e.reduction_pct || 0}% <span class="dim">(${(e.input_tokens||0)}→${(e.output_tokens||0)})</span></span>
+        </div>`).join('')}`;
+  }
+
+  // ── Renderers: events.jsonl ───────────────────────────────────────────────────
+  function renderSessionStats(toolEvts) {
+    const el = document.getElementById('sessionStats');
+    if (!serverConnected) {
+      el.innerHTML = `
+        <div class="no-data">Server required</div>
+        <div style="margin-top:8px">
+          <div class="metric-row"><span class="metric-label">Start server</span><span class="metric-value dim" style="font-size:10px">bash scripts/serve-dashboard.sh</span></div>
         </div>`;
       return;
     }
-    const r = data.rtk;
+    const total      = toolEvts.length;
+    const counts     = mcpCallCounts(toolEvts);
+    const servers    = Object.keys(counts);
+    const topServer  = servers.sort((a, b) => counts[b] - counts[a])[0];
+    const mcpCalls   = toolEvts.filter(e => e.server !== 'builtin').length;
+    const builtinCalls = total - mcpCalls;
+
     el.innerHTML = `
       <div class="numbers-grid">
-        <div class="number-block"><div class="big-number ok">${r.avg_reduction || 0}%</div><div class="sub-label">Avg reduction</div></div>
-        <div class="number-block"><div class="big-number info">${(r.tokens_saved || 0).toLocaleString()}</div><div class="sub-label">Tokens saved</div></div>
+        <div class="number-block"><div class="big-number info">${total}</div><div class="sub-label">Tool calls today</div></div>
+        <div class="number-block"><div class="big-number" style="color:${serverColor(topServer || 'builtin')}">${servers.length}</div><div class="sub-label">Servers active</div></div>
       </div>
-      <div class="metric-row"><span class="metric-label">Sessions this week</span><span class="metric-value">${r.sessions || 0}</span></div>
-      <div class="metric-row"><span class="metric-label">Est. cost avoided</span><span class="metric-value ok">$${(r.cost_avoided || 0).toFixed(2)}</span></div>`;
+      <div class="metric-row"><span class="metric-label">MCP calls</span><span class="metric-value info">${mcpCalls}</span></div>
+      <div class="metric-row"><span class="metric-label">Built-in calls</span><span class="metric-value dim">${builtinCalls}</span></div>
+      ${topServer ? `<div class="metric-row"><span class="metric-label">Top server</span><span class="metric-value" style="color:${serverColor(topServer)}">${escapeHtml(topServer)}</span></div>` : ''}`;
   }
 
-  // ── Main ──────────────────────────────────────────────────────────────────
-  async function main() {
-    const metrics = await loadMetrics();
+  function renderLiveActivity(toolEvts) {
+    const el = document.getElementById('liveActivity');
 
-    renderWorkforceChart(metrics);
-    renderCost(metrics);
-    renderPR(metrics);
-    renderSecurity(metrics);
-    renderMCP(metrics);
-    renderRTK(metrics);
+    if (!serverConnected) {
+      el.innerHTML = `
+        <div class="no-data">
+          Real-time events need an HTTP server.
+          Run <strong>bash scripts/serve-dashboard.sh</strong> then open <strong>http://localhost:3099</strong>
+        </div>`;
+      return;
+    }
 
-    const ts = metrics && metrics.updated_at
-      ? new Date(metrics.updated_at).toLocaleString()
-      : 'No metrics file found — run scripts/metrics-collector.sh';
-    document.getElementById('last-updated').textContent = `Updated: ${ts}`;
+    if (toolEvts.length === 0) {
+      el.innerHTML = `
+        <div class="no-data">
+          No tool events yet. Wire the PostToolUse hook in <strong>.claude/settings.json</strong>
+          to call <strong>node scripts/log-tool-event.js</strong>
+        </div>`;
+      return;
+    }
+
+    const recent = toolEvts.slice(-25).reverse();
+    el.innerHTML = `<div class="event-list">${
+      recent.map(e => {
+        const color = serverColor(e.server);
+        return `
+          <div class="event-row">
+            <span class="event-ts">${relativeTime(e.ts)}</span>
+            <span class="event-server" style="color:${color}">${escapeHtml(e.server)}</span>
+            <span class="event-tool">${escapeHtml(e.tool)}</span>
+            <span class="event-summary">${e.summary ? escapeHtml(e.summary) : ''}</span>
+          </div>`;
+      }).join('')
+    }</div>`;
   }
 
-  main();
+  // ── Status bar ────────────────────────────────────────────────────────────────
+  function updateConnStatus(hasEvents) {
+    const dot   = document.getElementById('liveConnDot');
+    const label = document.getElementById('liveConnLabel');
+    if (!serverConnected) {
+      dot.className   = 'conn-dot off';
+      label.textContent = 'events: no server';
+    } else if (hasEvents) {
+      dot.className   = 'conn-dot live';
+      label.textContent = 'events: live';
+    } else {
+      dot.className   = 'conn-dot stale';
+      label.textContent = 'events: idle';
+    }
+  }
 
-  // Refresh every 60 seconds
-  setInterval(main, 60_000);
+  // ── Poll loops ────────────────────────────────────────────────────────────────
+  let lastMetricsData = null;
+
+  async function pollMetrics() {
+    lastMetricsData = await loadMetrics();
+    const callCounts = mcpCallCounts(todaysToolEvents(eventCache));
+
+    renderWorkforceChart(lastMetricsData);
+    renderCost(lastMetricsData);
+    renderPR(lastMetricsData);
+    renderSecurity(lastMetricsData);
+    renderMCP(lastMetricsData, callCounts);
+    renderRTK(lastMetricsData, todaysRtkEvents(eventCache));
+
+    const ts = lastMetricsData && lastMetricsData.updated_at
+      ? `metrics: ${new Date(lastMetricsData.updated_at).toLocaleTimeString()}`
+      : 'metrics: run metrics-collector.sh';
+    document.getElementById('last-updated').textContent = ts;
+  }
+
+  async function pollEvents() {
+    const events = await loadEvents();
+    if (events !== null) {
+      eventCache = events;
+    }
+    const toolEvts = todaysToolEvents(eventCache);
+    const rtkEvts  = todaysRtkEvents(eventCache);
+
+    renderSessionStats(toolEvts);
+    renderLiveActivity(toolEvts);
+    renderRTK(lastMetricsData, rtkEvts);
+
+    // Refresh MCP call counts on every event poll
+    if (lastMetricsData) {
+      renderMCP(lastMetricsData, mcpCallCounts(toolEvts));
+    }
+
+    updateConnStatus(toolEvts.length > 0 || rtkEvts.length > 0);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  pollMetrics();
+  pollEvents();
+
+  // metrics.json: 60s (near-real-time, pulls from GitHub/Langfuse)
+  setInterval(pollMetrics, 60_000);
+
+  // events.jsonl: 3s (real-time — tool calls, RTK events)
+  setInterval(pollEvents, 3_000);
 </script>
 </body>
 </html>

@@ -43,6 +43,8 @@ npm-debug.log*
 # LiteLLM local DB
 litellm.db
 
+# Observation Deck runtime event log (local activity feed, regenerated continuously)
+dashboards/observation-deck/events.jsonl
 
 # Devcontainer local secrets
 .devcontainer/.env

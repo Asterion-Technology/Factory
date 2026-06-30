@@ -69,9 +69,20 @@ if [[ -n "$RESPONSE" ]]; then
     echo "$COMPRESSED"
     echo "" >&2
     echo "[rtk] ${INPUT_TOKENS} → ${OUTPUT_TOKENS} tokens (${SAVINGS}% reduction)" >&2
+    # Emit event to Observation Deck
+    _RTK_LOG="$(dirname "${BASH_SOURCE[0]}")/../dashboards/observation-deck/events.jsonl"
+    _RTK_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
+    echo "{\"ts\":\"${_RTK_TS}\",\"type\":\"rtk\",\"input_tokens\":${INPUT_TOKENS},\"output_tokens\":${OUTPUT_TOKENS},\"reduction_pct\":${SAVINGS},\"model\":\"${MODEL}\"}" >> "$_RTK_LOG" 2>/dev/null || true
     exit 0
   fi
 fi
 
 # Fallback: rule-based deduplication if Ollama response failed
-echo "$INPUT" | sort -u | head -150
+COMPRESSED=$(echo "$INPUT" | sort -u | head -150)
+OUTPUT_TOKENS=$(echo "$COMPRESSED" | wc -w)
+SAVINGS=$(( INPUT_TOKENS > OUTPUT_TOKENS ? (INPUT_TOKENS - OUTPUT_TOKENS) * 100 / INPUT_TOKENS : 0 ))
+echo "$COMPRESSED"
+# Emit event for fallback path
+_RTK_LOG="$(dirname "${BASH_SOURCE[0]}")/../dashboards/observation-deck/events.jsonl"
+_RTK_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
+echo "{\"ts\":\"${_RTK_TS}\",\"type\":\"rtk\",\"input_tokens\":${INPUT_TOKENS},\"output_tokens\":${OUTPUT_TOKENS},\"reduction_pct\":${SAVINGS},\"model\":\"fallback\"}" >> "$_RTK_LOG" 2>/dev/null || true
