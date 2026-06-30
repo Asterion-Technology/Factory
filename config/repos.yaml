@@ -1,0 +1,75 @@
+# Factory Repo Registry
+# Manifest of all repos managed by this Factory instance.
+# Each repo is referenced by a short id used in scripts, Linear, and Claude prompts.
+# local_path: absolute path on this machine — override with FACTORY_ROOT env var if your layout differs.
+# remote: primary git remote URL (leave blank if not yet pushed).
+# role: how the Factory uses this repo (app | infra | library | scratchpad).
+# stack: freeform tags for routing decisions (e.g. model selection, MCP tool choice).
+
+factory:
+  base: "d:/REPO"            # root that all local_path entries are relative to
+  version: 1
+
+repos:
+  - id: factory
+    name: "Agentic DevSecOps Factory"
+    local_path: Factory
+    remote: ""
+    role: infra
+    description: "Factory control plane — CI/CD orchestration, MCP servers, agents, dashboards."
+    stack: [node, bash, yaml]
+    linear_project: ""
+
+  - id: titan-source
+    name: "TitanSource"
+    local_path: TitanSource
+    remote: ""
+    role: app
+    description: "Primary product monorepo (pnpm workspaces, Prisma, Meilisearch)."
+    stack: [node, typescript, pnpm, prisma, meilisearch]
+    linear_project: ""
+
+  - id: ddsc
+    name: "DDSc"
+    local_path: DDSc
+    remote: ""
+    role: app
+    description: "Public-facing website — commercial, government, notary, and real-estate verticals. PHP + static HTML, Playwright E2E."
+    stack: [php, html, js, playwright]
+    linear_project: ""
+
+  - id: ae
+    name: "AE"
+    local_path: AE
+    remote: ""
+    role: infra
+    description: "Infrastructure and service configs — LangFuse, LiteLLM, hello-world, notary-control-hub."
+    stack: [docker, yaml]
+    linear_project: ""
+
+  - id: time
+    name: "Time"
+    local_path: Time
+    remote: ""
+    role: app
+    description: "Time-tracking or scheduling application."
+    stack: [node]
+    linear_project: ""
+
+  - id: scrap
+    name: "SCRAP"
+    local_path: SCRAP
+    remote: ""
+    role: scratchpad
+    description: "Scratch space — experiments, research, throwaway code. Not production."
+    stack: []
+    linear_project: ""
+
+  - id: haven
+    name: "Haven"
+    local_path: "C:/Users/RDM71/REPO/Haven"
+    remote: ""
+    role: app
+    description: "Website for community coupons and projects."
+    stack: [node]
+    linear_project: "Haven"

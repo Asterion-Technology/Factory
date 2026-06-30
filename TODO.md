@@ -2,6 +2,47 @@
 
 ## Out-of-Scope Issues Found
 
+### Notary Control Hub
+
+#### Security
+- [ ] Presigned URL redirect in `/api/documents/[id]` GET exposes the R2 URL in the Location header — browser sees the signed URL
+  - Location: `projects/notary-control-hub/src/app/api/documents/[id]/route.ts`
+  - Risk: Low (URLs are short-lived 15 min TTL) but could be captured in logs
+  - Suggested fix: Consider streaming the file through the server rather than redirecting for higher-sensitivity docs
+
+- [ ] Windows OS-level env vars silently override `.env` and `.env.local` — any env var set at the user or system level in Windows will always win over `.env` files
+  - Location: `projects/notary-control-hub/src/lib/prisma.ts`, `next.config.ts` (workaround applied for DATABASE_URL)
+  - Risk: Wrong credentials used in dev without any error — silent misconfiguration
+  - Suggested fix: Document this Windows-specific gotcha in `bootstrap/first-run.md`; extend the fs.readFileSync workaround to all critical env vars (R2, Clerk, etc.) or remove stale OS-level vars via Control Panel
+
+#### Missing Features / Incomplete Flows
+- [ ] Invoice detail page `/invoices/[id]` not yet built
+  - Path: `projects/notary-control-hub/src/app/(app)/invoices/[id]/page.tsx`
+- [ ] Invoice create page `/invoices/new` not yet built
+  - Path: `projects/notary-control-hub/src/app/(app)/invoices/new/`
+- [ ] PDF export for invoices not yet implemented
+- [ ] Webhook for Clerk user creation not yet built — `getOrCreateDbUser` creates user lazily on first request
+  - Location: `projects/notary-control-hub/src/lib/auth.ts`
+  - Suggested fix: Add `/api/webhooks/clerk` route to handle `user.created` event
+- [ ] Communication log on assignment detail — currently only accessible from contact detail; an assignment's own comm log view is missing
+  - Path: `projects/notary-control-hub/src/app/(app)/assignments/[id]/page.tsx`
+
+#### Technical Debt
+- [ ] `generateInvoiceNumber()` in `src/app/api/invoices/route.ts` uses random numbers — not guaranteed unique
+  - Location: `projects/notary-control-hub/src/app/api/invoices/route.ts`
+  - Suggested fix: Use a DB sequence or year+sequential counter per user
+- [ ] R2 bucket name in `.env` is `"scrap"` — rename to a purpose-specific bucket (e.g., `notary-documents`) before production
+  - Location: `projects/notary-control-hub/.env` — `R2_BUCKET_NAME`
+  - Suggested fix: Create a dedicated R2 bucket; update `.env` and Railway secrets
+
+#### Future Enhancements
+- [ ] Email invoice via Resend
+- [ ] RON integration — platform-specific workflow support
+- [ ] Audit log viewer page for user to review their own activity
+- [ ] Settings page — profile editing (notary state, stamp/E&O expiry dates)
+- [ ] Export assignment history as CSV
+- [ ] Checklist template management UI — currently templates can only be applied via API
+
 ### Future Enhancements
 
 - [x] Linear workflow integration — ✅ COMPLETE (Phase 7)
@@ -26,9 +67,15 @@
   - Risk: id.me API versioning and auth scope may differ by environment
   - Suggested fix: Validate against id.me developer documentation
 
-- [ ] Observation Deck live data wiring — connect real metrics to dashboard
-  - Value: Real-time visibility into agent workload, cost, and PR velocity
-  - Suggested implementation: Implement `loadMetrics()` in `dashboards/observation-deck/index.html` to call a local metrics API backed by Langfuse + GitHub API
+- [x] Observation Deck live data wiring — AST-48, partially complete
+  - Real-time tool/MCP event feed via `events.jsonl` (3s polling) ✅
+  - Session stats, MCP call counts, RTK live events ✅
+  - `scripts/log-tool-event.js` PostToolUse hook + `scripts/serve-dashboard.sh` ✅
+  - **Remaining: wire PostToolUse hook** — add to `.claude/settings.json`:
+    ```json
+    "PostToolUse": [{ "matcher": ".*", "hooks": [{ "type": "command", "command": "node d:/REPO/Factory/scripts/log-tool-event.js" }] }]
+    ```
+  - **Remaining: Langfuse cost wiring** — set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` env vars (see below)
 
 - [ ] Langfuse telemetry wiring — connect LiteLLM → Langfuse for cost and token tracking
   - Value: Populates Observation Deck cost metrics; enables RTK savings reporting and per-model cost attribution

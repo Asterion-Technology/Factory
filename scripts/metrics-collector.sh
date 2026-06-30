@@ -1,37 +1,57 @@
 #!/usr/bin/env bash
 # Collect factory metrics from GitHub, Langfuse, and git history
 # Writes dashboards/observation-deck/metrics.json for the Observation Deck
-# Usage: bash scripts/metrics-collector.sh [--repo owner/repo] [--days 7]
+# Usage: bash scripts/metrics-collector.sh [--repo owner/repo ...] [--days 7]
+#   --repo may be passed multiple times to track several repos; their PR
+#   metrics are aggregated for the headline numbers and also broken out
+#   per-repo under prs.by_repo. GITHUB_TOKEN must have read access to every
+#   repo passed — GitHub Actions' auto-generated secrets.GITHUB_TOKEN only
+#   covers the repo the workflow runs in, so cross-repo automated collection
+#   needs a separate token with access to the other repo(s).
 set -euo pipefail
 
 FACTORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT="${FACTORY_ROOT}/dashboards/observation-deck/metrics.json"
+
+# Source Factory .env if it exists (so the script works without manual env exports)
+if [[ -f "${FACTORY_ROOT}/.env" ]]; then
+  set -a; source "${FACTORY_ROOT}/.env"; set +a
+fi
+
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 LANGFUSE_PUBLIC_KEY="${LANGFUSE_PUBLIC_KEY:-}"
 LANGFUSE_SECRET_KEY="${LANGFUSE_SECRET_KEY:-}"
-LANGFUSE_HOST="${LANGFUSE_HOST:-https://cloud.langfuse.com}"
+# Accept either LANGFUSE_HOST (legacy) or LANGFUSE_BASE_URL (official SDK name)
+LANGFUSE_HOST="${LANGFUSE_HOST:-${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}}"
+LANGFUSE_CONNECTED=false
 DAYS=7
-REPO=""
+REPOS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --repo) REPO="$2"; shift 2 ;;
+    --repo) REPOS+=("$2"); shift 2 ;;
     --days) DAYS="$2"; shift 2 ;;
     --output) OUTPUT="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 
-# Auto-detect repo from git remote if not specified
-if [[ -z "$REPO" ]]; then
-  REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]//;s/\.git$//' || echo "")
+# Auto-detect repo from git remote if none were passed
+if [[ ${#REPOS[@]} -eq 0 ]]; then
+  AUTO_REPO=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]//;s/\.git$//' || echo "")
+  [[ -n "$AUTO_REPO" ]] && REPOS=("$AUTO_REPO")
 fi
+
+# Single-repo compat: the security-gate status section below checks the CI
+# state of the primary repo this dashboard lives in — it doesn't (yet)
+# aggregate across multiple repos like the PR metrics above do.
+REPO="${REPOS[0]:-}"
 
 SINCE_DATE=$(date -d "${DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-"${DAYS}d" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 echo "── Collecting factory metrics ──────────────────────"
-echo "Repo: ${REPO:-unknown}"
+echo "Repos: ${REPOS[*]:-unknown}"
 echo "Period: last ${DAYS} days"
 echo ""
 
@@ -41,9 +61,32 @@ OPEN_PRS=0
 AVG_CYCLE_HOURS=0
 CI_PASS_RATE=0
 CODEX_BLOCKS=0
+BY_REPO_JSON_PARTS=()
 
-if [[ -n "$GITHUB_TOKEN" && -n "$REPO" ]]; then
-  echo "[collecting] GitHub PR metrics..."
+# GitHub's API is pretty-printed JSON ("key": value, with a space after the
+# colon) — naive no-space regexes like '"total_count":[0-9]*' silently
+# zero-width-match and return empty strings instead of failing loudly, which
+# is why every PR metric used to report as 0 even when the API call itself
+# succeeded. Parse properly with node instead of grep for every count below.
+json_total_count() {
+  node -e '
+    let input = "";
+    process.stdin.on("data", (d) => { input += d; });
+    process.stdin.on("end", () => {
+      try { process.stdout.write(String(JSON.parse(input).total_count ?? 0)); }
+      catch { process.stdout.write("0"); }
+    });
+  ' 2>/dev/null || echo "0"
+}
+
+# Collects PR metrics for one repo. Prints 7 space-separated numbers to
+# stdout: merged open cycle_total_hours cycle_pr_count success_runs
+# concluded_runs codex_blocks — left raw (unaveraged) so the caller can sum
+# across repos before computing final averages/percentages. All logging
+# goes to stderr so it doesn't pollute the captured values.
+collect_repo_pr_metrics() {
+  local repo="$1"
+  local merged=0 open=0 cycle_hours=0 cycle_count=0 success_runs=0 concluded_runs=0 codex_blocks=0
 
   # GitHub's API is pretty-printed JSON ("key": value, with a space after the
   # colon) — naive no-space regexes like '"total_count":[0-9]*' silently
@@ -145,12 +188,24 @@ if [[ -n "$GITHUB_TOKEN" && -n "$REPO" ]]; then
     if [[ "${CONCLUDED_RUNS:-0}" -gt 0 ]] 2>/dev/null; then
       CI_PASS_RATE=$(( SUCCESS_RUNS * 100 / CONCLUDED_RUNS ))
     fi
+
+    BY_REPO_JSON_PARTS+=("{\"repo\":\"${repo}\",\"merged_this_week\":${r_merged:-0},\"open\":${r_open:-0},\"avg_cycle_hours\":${r_avg_cycle},\"ci_pass_rate\":${r_ci_pass_rate},\"codex_blocks\":${r_codex:-0}}")
+  done
+
+  if [[ "${TOTAL_CYCLE_COUNT:-0}" -gt 0 ]] 2>/dev/null; then
+    AVG_CYCLE_HOURS=$(awk -v h="$TOTAL_CYCLE_HOURS" -v c="$TOTAL_CYCLE_COUNT" 'BEGIN{printf "%.1f", h/c}' 2>/dev/null || echo "0")
+  fi
+  if [[ "${TOTAL_CONCLUDED_RUNS:-0}" -gt 0 ]] 2>/dev/null; then
+    CI_PASS_RATE=$(( TOTAL_SUCCESS_RUNS * 100 / TOTAL_CONCLUDED_RUNS ))
   fi
 
-  echo "[ok]  GitHub: ${MERGED_PRS} merged PRs, ${OPEN_PRS} open, CI pass rate ~${CI_PASS_RATE}%"
+  echo "[ok]  GitHub (combined): ${MERGED_PRS} merged PRs, ${OPEN_PRS} open, CI pass rate ~${CI_PASS_RATE}%"
 else
   echo "[warn] GITHUB_TOKEN or REPO not set — skipping GitHub metrics"
 fi
+
+# Join the per-repo JSON objects into a JSON array string for the output template
+BY_REPO_JSON="[$(IFS=,; echo "${BY_REPO_JSON_PARTS[*]:-}")]"
 
 # ── Security gate status (from latest CI run) ──────────────────────────────────
 echo "[collecting] Security gate status..."
@@ -215,24 +270,59 @@ RTK_TOKENS_SAVED=0
 
 if [[ -n "$LANGFUSE_PUBLIC_KEY" && -n "$LANGFUSE_SECRET_KEY" ]]; then
   echo "[collecting] Langfuse cost metrics..."
-  LANGFUSE_AUTH=$(echo -n "${LANGFUSE_PUBLIC_KEY}:${LANGFUSE_SECRET_KEY}" | base64)
+  LANGFUSE_AUTH=$(echo -n "${LANGFUSE_PUBLIC_KEY}:${LANGFUSE_SECRET_KEY}" | base64 | tr -d '\n\r')
 
-  USAGE=$(curl -sf "${LANGFUSE_HOST}/api/public/metrics/usage?fromTimestamp=${SINCE_DATE}" \
+  # Verify connectivity with a lightweight traces ping first
+  PING=$(curl -sf "${LANGFUSE_HOST}/api/public/traces?limit=1" \
     -H "Authorization: Basic ${LANGFUSE_AUTH}" \
     -H "Accept: application/json" 2>/dev/null) || true
 
-  if [[ -n "$USAGE" ]]; then
-    # Extract totals from Langfuse response
-    TOTAL_TOKENS=$(echo "$USAGE" | grep -o '"totalTokens":[0-9]*' | grep -o '[0-9]*' | head -1 || echo "0")
-    TOTAL_COST=$(echo "$USAGE" | grep -o '"totalCost":[0-9.]*' | grep -o '[0-9.]*' | head -1 || echo "0")
-    # Approximate split: assume Claude = 60%, Codex = 25%, Ollama = 15%
-    CLAUDE_TOKENS=$(( TOTAL_TOKENS * 60 / 100 ))
-    CODEX_TOKENS=$(( TOTAL_TOKENS * 25 / 100 ))
-    OLLAMA_TASKS=$(( TOTAL_TOKENS * 15 / 100 / 200 ))  # avg ~200 tokens per Ollama task
-    echo "[ok]  Langfuse: ~$${TOTAL_COST} total, ${TOTAL_TOKENS} tokens"
+  if [[ -n "$PING" ]]; then
+    LANGFUSE_CONNECTED=true
+
+    # Fetch daily usage breakdown (Langfuse v2+ endpoint)
+    USAGE=$(curl -sf "${LANGFUSE_HOST}/api/public/metrics/daily?fromTimestamp=${SINCE_DATE}" \
+      -H "Authorization: Basic ${LANGFUSE_AUTH}" \
+      -H "Accept: application/json" 2>/dev/null) || true
+
+    if [[ -n "$USAGE" ]]; then
+      # Sum across all days: data[].totalCost and data[].totalTokens.
+      # Parsed with node rather than grep — under `set -o pipefail`, grep's
+      # normal "no match" exit (e.g. an empty data[] for the period) makes
+      # the whole pipeline report failure even after a later stage (awk)
+      # already produced valid output, so the `|| echo "0"` fallback fires
+      # *in addition* to that output instead of replacing it, leaving
+      # multi-line values like $'0\n0' that break arithmetic expansion.
+      USAGE_STATS=$(echo "$USAGE" | node -e '
+        let input = "";
+        process.stdin.on("data", (d) => { input += d; });
+        process.stdin.on("end", () => {
+          try {
+            const days = (JSON.parse(input).data || []);
+            let tokens = 0, cost = 0;
+            for (const day of days) {
+              tokens += Number(day.totalTokens) || 0;
+              cost += Number(day.totalCost) || 0;
+            }
+            process.stdout.write(`${tokens} ${cost.toFixed(4)}`);
+          } catch {
+            process.stdout.write("0 0.0000");
+          }
+        });
+      ' 2>/dev/null || echo "0 0.0000")
+      TOTAL_TOKENS=$(echo "$USAGE_STATS" | awk '{print $1}')
+      TOTAL_COST=$(echo "$USAGE_STATS" | awk '{print $2}')
+      # Approximate split: Claude = 60%, Codex = 25%, Ollama = 15%
+      CLAUDE_TOKENS=$(( TOTAL_TOKENS * 60 / 100 ))
+      CODEX_TOKENS=$(( TOTAL_TOKENS * 25 / 100 ))
+      OLLAMA_TASKS=$(( TOTAL_TOKENS * 15 / 100 / 200 ))
+    fi
+    echo "[ok]  Langfuse: connected, ~\$${TOTAL_COST} total, ${TOTAL_TOKENS} tokens"
+  else
+    echo "[warn] Langfuse credentials set but API unreachable (wrong key or host?)"
   fi
 else
-  echo "[warn] Langfuse credentials not set — cost metrics will show as zero"
+  echo "[warn] LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY not set — cost metrics will show as zero"
 fi
 
 # ── Workforce distribution heuristic ──────────────────────────────────────────
@@ -250,6 +340,37 @@ if [[ $MERGED_PRS -gt 0 ]]; then
   fi
 fi
 
+# ── Sanitize numeric vars (guard against empty strings) ───────────────────────
+MERGED_PRS="${MERGED_PRS:-0}"
+OPEN_PRS="${OPEN_PRS:-0}"
+AVG_CYCLE_HOURS="${AVG_CYCLE_HOURS:-0}"
+CI_PASS_RATE="${CI_PASS_RATE:-0}"
+CODEX_BLOCKS="${CODEX_BLOCKS:-0}"
+TOTAL_COST="${TOTAL_COST:-0}"
+RTK_SAVINGS="${RTK_SAVINGS:-0}"
+CLAUDE_TOKENS="${CLAUDE_TOKENS:-0}"
+CODEX_TOKENS="${CODEX_TOKENS:-0}"
+OLLAMA_TASKS="${OLLAMA_TASKS:-0}"
+RTK_AVG_REDUCTION="${RTK_AVG_REDUCTION:-0}"
+RTK_TOKENS_SAVED="${RTK_TOKENS_SAVED:-0}"
+RTK_SESSIONS="${RTK_SESSIONS:-0}"
+
+# ── Read MCP server list and embed in metrics.json ────────────────────────────
+MCP_JSON="[]"
+MCP_FILE="${FACTORY_ROOT}/mcp/mcp.factory.json"
+if [[ -f "$MCP_FILE" ]]; then
+  # cygpath -m converts POSIX path to Windows mixed (forward slashes) for Node on Windows
+  MCP_FILE_NODE=$(cygpath -m "$MCP_FILE" 2>/dev/null || echo "$MCP_FILE")
+  MCP_JSON=$(node -e "
+    const d = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+    const out = Object.entries(d.mcpServers || {}).map(([k,v]) => ({name:k, active:!v.disabled}));
+    process.stdout.write(JSON.stringify(out));
+  " "$MCP_FILE_NODE" 2>/dev/null || echo "[]")
+fi
+
+# Build a JSON array of tracked repo names
+REPOS_JSON=$(node -e "console.log(JSON.stringify(process.argv.slice(1)))" "${REPOS[@]}" 2>/dev/null || echo "[]")
+
 # ── Write metrics.json ─────────────────────────────────────────────────────────
 mkdir -p "$(dirname "$OUTPUT")"
 
@@ -258,6 +379,7 @@ cat > "$OUTPUT" <<JSON
   "updated_at": "${NOW}",
   "period_days": ${DAYS},
   "repo": "${REPO}",
+  "repos": ${REPOS_JSON},
   "workforce": {
     "claude": ${CLAUDE_PCT},
     "codex": ${CODEX_PCT},
@@ -265,6 +387,7 @@ cat > "$OUTPUT" <<JSON
     "human": ${HUMAN_PCT},
     "other": $(( 100 - CLAUDE_PCT - CODEX_PCT - OLLAMA_PCT - HUMAN_PCT ))
   },
+  "langfuse_connected": ${LANGFUSE_CONNECTED},
   "cost": {
     "total": ${TOTAL_COST},
     "saved_rtk": ${RTK_SAVINGS},
@@ -277,7 +400,8 @@ cat > "$OUTPUT" <<JSON
     "open": ${OPEN_PRS},
     "avg_cycle_hours": ${AVG_CYCLE_HOURS},
     "ci_pass_rate": ${CI_PASS_RATE},
-    "codex_blocks": ${CODEX_BLOCKS}
+    "codex_blocks": ${CODEX_BLOCKS},
+    "by_repo": ${BY_REPO_JSON}
   },
   "security": {
     "gitleaks": "${GITLEAKS_STATUS}",
@@ -295,8 +419,9 @@ cat > "$OUTPUT" <<JSON
     "avg_reduction": ${RTK_AVG_REDUCTION},
     "tokens_saved": ${RTK_TOKENS_SAVED},
     "sessions": ${RTK_SESSIONS},
-    "cost_avoided": $(echo "scale=4; ${RTK_TOKENS_SAVED} * 0.000003" | bc 2>/dev/null || echo "0")
-  }
+    "cost_avoided": $(awk -v t="$RTK_TOKENS_SAVED" 'BEGIN{printf "%.4f", t*0.000003}' 2>/dev/null || echo "0")
+  },
+  "mcp_servers": ${MCP_JSON}
 }
 JSON
 

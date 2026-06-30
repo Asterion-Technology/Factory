@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  clerkId     String    @unique
+  email       String    @unique
+  notaryState String?
+  stampExpiry DateTime?
+  eoExpiry    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contacts       Contact[]
+  assignments    Assignment[]
+  documents      Document[]
+  invoices       Invoice[]
+  auditLogs      AuditLog[]
+}
+
+enum ContactType {
+  SIGNING_CO
+  TITLE
+  ESCROW
+  CLIENT
+  BORROWER
+}
+
+model Contact {
+  id                    String      @id @default(cuid())
+  userId                String
+  type                  ContactType
+  name                  String
+  company               String?
+  email                 String?
+  phone                 String?
+  address               String?
+  paymentTerms          String?
+  preferredInstructions String?
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments       Assignment[]
+  invoices          Invoice[]
+  communicationLogs CommunicationLog[]
+
+  @@index([userId])
+  @@index([userId, type])
+}
+
+enum AssignmentType {
+  GENERAL
+  LOAN_SIGNING
+  RON
+  MOBILE
+}
+
+enum AssignmentStatus {
+  NEW
+  CONFIRMED
+  DOCS_RECEIVED
+  PRINTED
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+model Assignment {
+  id                  String           @id @default(cuid())
+  userId              String
+  type                AssignmentType
+  status              AssignmentStatus @default(NEW)
+  contactId           String?
+  borrowerName        String?
+  borrowerPhone       String?
+  borrowerEmail       String?
+  appointmentAt       DateTime?
+  location            String?
+  address             String?
+  fee                 Decimal?         @db.Decimal(10, 2)
+  travelFee           Decimal?         @db.Decimal(10, 2)
+  printingFee         Decimal?         @db.Decimal(10, 2)
+  mileage             Decimal?         @db.Decimal(6, 1)
+  travelNotes         String?
+  specialInstructions String?
+  scanbackRequired    Boolean          @default(false)
+  deadlineAt          DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact           Contact?              @relation(fields: [contactId], references: [id])
+  checklists        AssignmentChecklist[]
+  documents         Document[]
+  invoice           Invoice?
+  communicationLogs CommunicationLog[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, appointmentAt])
+}
+
+enum ChecklistTemplateType {
+  GENERAL
+  NSA
+  PREFLIGHT
+  RON
+}
+
+model AssignmentChecklist {
+  id           String                @id @default(cuid())
+  assignmentId String
+  templateType ChecklistTemplateType
+  createdAt    DateTime              @default(now())
+
+  assignment Assignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  items      AssignmentChecklistItem[]
+
+  @@unique([assignmentId, templateType])
+}
+
+model AssignmentChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  label       String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  sortOrder   Int       @default(0)
+
+  checklist AssignmentChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id           String    @id @default(cuid())
+  userId       String
+  assignmentId String?
+  originalName String
+  storageKey   String    @unique
+  mimeType     String
+  sizeBytes    Int
+  expiresAt    DateTime?
+  purgedAt     DateTime?
+  uploadedAt   DateTime  @default(now())
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment  Assignment?       @relation(fields: [assignmentId], references: [id])
+  attestation PurgeAttestation?
+
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([expiresAt])
+}
+
+model PurgeAttestation {
+  id         String   @id @default(cuid())
+  userId     String
+  documentId String   @unique
+  attestedAt DateTime @default(now())
+  checksum   String
+
+  document Document @relation(fields: [documentId], references: [id])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  userId         String
+  assignmentId   String?       @unique
+  contactId      String?
+  status         InvoiceStatus @default(DRAFT)
+  invoiceNumber  String
+  issuedAt       DateTime      @default(now())
+  dueAt          DateTime?
+  paidAt         DateTime?
+  fee            Decimal?      @db.Decimal(10, 2)
+  travelFee      Decimal?      @db.Decimal(10, 2)
+  printingFee    Decimal?      @db.Decimal(10, 2)
+  additionalFees Decimal?      @db.Decimal(10, 2)
+  total          Decimal       @db.Decimal(10, 2)
+  notes          String?
+  paymentNotes   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment?       @relation(fields: [assignmentId], references: [id])
+  contact    Contact?          @relation(fields: [contactId], references: [id])
+  lineItems  InvoiceLineItem[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal @db.Decimal(6, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum CommunicationChannel {
+  EMAIL
+  PHONE
+  SMS
+  IN_PERSON
+}
+
+enum CommunicationDirection {
+  IN
+  OUT
+}
+
+model CommunicationLog {
+  id           String                 @id @default(cuid())
+  userId       String
+  contactId    String
+  assignmentId String?
+  channel      CommunicationChannel
+  direction    CommunicationDirection
+  summary      String
+  occurredAt   DateTime
+
+  contact    Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@index([contactId])
+  @@index([assignmentId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

@@ -37,7 +37,13 @@ jobs:
 
       - name: Collect metrics
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # secrets.GITHUB_TOKEN is auto-generated per workflow run and scoped
+          # ONLY to the repo the workflow runs in (Factory) — it cannot read a
+          # different, private repo like Haven. Tracking Haven here requires a
+          # separate token with read access to it, stored as the
+          # CROSS_REPO_TOKEN repo secret; falls back to GITHUB_TOKEN (which
+          # will just fail closed on the Haven calls) if that secret isn't set.
+          GITHUB_TOKEN: ${{ secrets.CROSS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST || 'https://us.cloud.langfuse.com' }}
@@ -45,6 +51,7 @@ jobs:
           DAYS="${{ github.event.inputs.days || '7' }}"
           bash scripts/metrics-collector.sh \
             --repo "${{ github.repository }}" \
+            --repo "Gyro06/Haven" \
             --days "$DAYS"
 
       - name: Commit metrics.json
