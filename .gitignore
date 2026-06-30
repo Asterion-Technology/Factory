@@ -43,8 +43,5 @@ npm-debug.log*
 # LiteLLM local DB
 litellm.db
 
-# Metrics output (generated, not committed)
-dashboards/observation-deck/metrics.json
-
 # Devcontainer local secrets
 .devcontainer/.env
