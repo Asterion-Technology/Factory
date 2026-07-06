@@ -87,36 +87,22 @@ json_total_count() {
 collect_repo_pr_metrics() {
   local repo="$1"
   local merged=0 open=0 cycle_hours=0 cycle_count=0 success_runs=0 concluded_runs=0 codex_blocks=0
-
-  # GitHub's API is pretty-printed JSON ("key": value, with a space after the
-  # colon) — naive no-space regexes like '"total_count":[0-9]*' silently
-  # zero-width-match and return empty strings instead of failing loudly, which
-  # is why every PR metric used to report as 0 even when the API call itself
-  # succeeded. Parse properly with node instead of grep for every count below.
-  json_total_count() {
-    node -e '
-      let input = "";
-      process.stdin.on("data", (d) => { input += d; });
-      process.stdin.on("end", () => {
-        try { process.stdout.write(String(JSON.parse(input).total_count ?? 0)); }
-        catch { process.stdout.write("0"); }
-      });
-    ' 2>/dev/null || echo "0"
-  }
+  local merged_response open_response run_response cycle_stats ci_stats
 
   # Merged PRs this week
-  MERGED_RESPONSE=$(curl -sf \
-    "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:>=${SINCE_DATE}&per_page=100" \
+  merged_response=$(curl -sf \
+    "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:merged+merged:>=${SINCE_DATE}&per_page=100" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
 
-  if [[ -n "$MERGED_RESPONSE" ]]; then
-    MERGED_PRS=$(echo "$MERGED_RESPONSE" | json_total_count)
+  if [[ -n "$merged_response" ]]; then
+    merged=$(echo "$merged_response" | json_total_count)
 
-    # Average cycle time (created → closed) in hours, across merged PRs in this page.
+    # Total cycle time (created → closed) in hours across merged PRs in this
+    # page, plus the contributing PR count — raw, so the caller can average.
     # closed_at is used as a merge-time proxy — exact for PRs merged via the normal
     # merge button/API, which covers the overwhelming majority of cases.
-    CYCLE_STATS=$(echo "$MERGED_RESPONSE" | node -e '
+    cycle_stats=$(echo "$merged_response" | node -e '
       let input = "";
       process.stdin.on("data", (d) => { input += d; });
       process.stdin.on("end", () => {
@@ -137,39 +123,36 @@ collect_repo_pr_metrics() {
         }
       });
     ' 2>/dev/null || echo "0 0")
-    CYCLE_TOTAL_HOURS=$(echo "$CYCLE_STATS" | awk '{print $1}')
-    CYCLE_PR_COUNT=$(echo "$CYCLE_STATS" | awk '{print $2}')
-    if [[ "${CYCLE_PR_COUNT:-0}" -gt 0 ]] 2>/dev/null; then
-      AVG_CYCLE_HOURS=$(echo "scale=1; ${CYCLE_TOTAL_HOURS} / ${CYCLE_PR_COUNT}" | bc 2>/dev/null || echo "0")
-    fi
+    cycle_hours=$(echo "$cycle_stats" | awk '{print $1}')
+    cycle_count=$(echo "$cycle_stats" | awk '{print $2}')
   fi
 
   # Open PRs — same search-API pattern as merged PRs above, for a real count
   # (previously fetched via a HEAD request whose response was never parsed).
-  OPEN_RESPONSE=$(curl -sf \
-    "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:open&per_page=1" \
+  open_response=$(curl -sf \
+    "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:open&per_page=1" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
-  if [[ -n "$OPEN_RESPONSE" ]]; then
-    OPEN_PRS=$(echo "$OPEN_RESPONSE" | json_total_count)
+  if [[ -n "$open_response" ]]; then
+    open=$(echo "$open_response" | json_total_count)
   fi
 
   # Count Codex block verdicts in PR comments (look for "### Verdict\nBlock")
-  if [[ "${MERGED_PRS:-0}" -gt 0 ]] 2>/dev/null; then
-    CODEX_BLOCKS=$(curl -sf \
-      "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:>=${SINCE_DATE}+in:comments+%22Verdict%0ABlock%22&per_page=1" \
+  if [[ "${merged:-0}" -gt 0 ]] 2>/dev/null; then
+    codex_blocks=$(curl -sf \
+      "https://api.github.com/search/issues?q=repo:${repo}+is:pr+is:merged+merged:>=${SINCE_DATE}+in:comments+%22Verdict%0ABlock%22&per_page=1" \
       -H "Authorization: Bearer ${GITHUB_TOKEN}" \
       -H "Accept: application/vnd.github+json" 2>/dev/null | json_total_count)
   fi
 
   # CI check run stats (sample runs created in the period)
-  RUN_RESPONSE=$(curl -sf \
-    "https://api.github.com/repos/${REPO}/actions/runs?per_page=20&created=>=${SINCE_DATE}" \
+  run_response=$(curl -sf \
+    "https://api.github.com/repos/${repo}/actions/runs?per_page=20&created=>=${SINCE_DATE}" \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" 2>/dev/null) || true
 
-  if [[ -n "$RUN_RESPONSE" ]]; then
-    CI_STATS=$(echo "$RUN_RESPONSE" | node -e '
+  if [[ -n "$run_response" ]]; then
+    ci_stats=$(echo "$run_response" | node -e '
       let input = "";
       process.stdin.on("data", (d) => { input += d; });
       process.stdin.on("end", () => {
@@ -183,10 +166,35 @@ collect_repo_pr_metrics() {
         }
       });
     ' 2>/dev/null || echo "0 0")
-    SUCCESS_RUNS=$(echo "$CI_STATS" | awk '{print $1}')
-    CONCLUDED_RUNS=$(echo "$CI_STATS" | awk '{print $2}')
-    if [[ "${CONCLUDED_RUNS:-0}" -gt 0 ]] 2>/dev/null; then
-      CI_PASS_RATE=$(( SUCCESS_RUNS * 100 / CONCLUDED_RUNS ))
+    success_runs=$(echo "$ci_stats" | awk '{print $1}')
+    concluded_runs=$(echo "$ci_stats" | awk '{print $2}')
+  fi
+
+  echo "${merged:-0} ${open:-0} ${cycle_hours:-0} ${cycle_count:-0} ${success_runs:-0} ${concluded_runs:-0} ${codex_blocks:-0}"
+}
+
+if [[ -n "$GITHUB_TOKEN" && ${#REPOS[@]} -gt 0 ]]; then
+  TOTAL_CYCLE_HOURS=0
+  TOTAL_CYCLE_COUNT=0
+  TOTAL_SUCCESS_RUNS=0
+  TOTAL_CONCLUDED_RUNS=0
+
+  for repo in "${REPOS[@]}"; do
+    read -r r_merged r_open r_cycle_hours r_cycle_count r_success r_concluded r_codex \
+      <<<"$(collect_repo_pr_metrics "$repo")"
+
+    MERGED_PRS=$(( MERGED_PRS + ${r_merged:-0} ))
+    OPEN_PRS=$(( OPEN_PRS + ${r_open:-0} ))
+    CODEX_BLOCKS=$(( CODEX_BLOCKS + ${r_codex:-0} ))
+    TOTAL_CYCLE_HOURS=$(awk -v a="$TOTAL_CYCLE_HOURS" -v b="${r_cycle_hours:-0}" 'BEGIN{print a + b}')
+    TOTAL_CYCLE_COUNT=$(( TOTAL_CYCLE_COUNT + ${r_cycle_count:-0} ))
+    TOTAL_SUCCESS_RUNS=$(( TOTAL_SUCCESS_RUNS + ${r_success:-0} ))
+    TOTAL_CONCLUDED_RUNS=$(( TOTAL_CONCLUDED_RUNS + ${r_concluded:-0} ))
+
+    r_avg_cycle=$(awk -v h="${r_cycle_hours:-0}" -v c="${r_cycle_count:-0}" 'BEGIN{printf "%.1f", (c > 0) ? h / c : 0}' 2>/dev/null || echo "0")
+    r_ci_pass_rate=0
+    if [[ "${r_concluded:-0}" -gt 0 ]] 2>/dev/null; then
+      r_ci_pass_rate=$(( ${r_success:-0} * 100 / r_concluded ))
     fi
 
     BY_REPO_JSON_PARTS+=("{\"repo\":\"${repo}\",\"merged_this_week\":${r_merged:-0},\"open\":${r_open:-0},\"avg_cycle_hours\":${r_avg_cycle},\"ci_pass_rate\":${r_ci_pass_rate},\"codex_blocks\":${r_codex:-0}}")
