@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] — 2026-07-06
+
+### Changed
+- Merge pull request #6 from Asterion-Technology/fix/AST-107-metrics-collector-syntax
+
+
 ## [Unreleased] — 2026-07-02
 
 ### Changed
