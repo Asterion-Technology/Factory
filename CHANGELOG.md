@@ -3,6 +3,12 @@
 ## [Unreleased] — 2026-07-06
 
 ### Changed
+- Merge pull request #7 from Asterion-Technology/security/AST-108-nextjs-16
+
+
+## [Unreleased] — 2026-07-06
+
+### Changed
 - Merge pull request #6 from Asterion-Technology/fix/AST-107-metrics-collector-syntax
 
 
