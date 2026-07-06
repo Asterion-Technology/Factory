@@ -3,6 +3,12 @@
 ## [Unreleased] — 2026-07-06
 
 ### Changed
+- Merge pull request #9 from Asterion-Technology/security/AST-109-gitleaks-license
+
+
+## [Unreleased] — 2026-07-06
+
+### Changed
 - Merge pull request #8 from Asterion-Technology/security/AST-109-gitleaks-license
 
 
