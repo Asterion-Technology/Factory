@@ -23,6 +23,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Required since the repo moved to the Asterion-Technology org —
+          # gitleaks-action@v2 mandates a license key for organization repos.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   # ── Gate 2: SAST ────────────────────────────────────────────────────────────
   sast:
