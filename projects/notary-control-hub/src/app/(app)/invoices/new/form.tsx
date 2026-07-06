@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CONTACT_TYPE_LABELS, ASSIGNMENT_TYPE_LABELS } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -399,12 +400,12 @@ export function NewInvoiceForm({
       </div>
 
       <div className="flex justify-end gap-3 pt-2">
-        <a
+        <Link
           href="/invoices"
           className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           Cancel
-        </a>
+        </Link>
         <button
           type="submit"
           disabled={loading}
