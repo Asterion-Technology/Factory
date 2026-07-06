@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getOrCreateDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NewInvoiceForm } from "./form";
@@ -21,9 +22,9 @@ export default async function NewInvoicePage() {
   return (
     <div className="space-y-4 max-w-2xl">
       <div>
-        <a href="/invoices" className="text-sm text-blue-600 hover:underline">
+        <Link href="/invoices" className="text-sm text-blue-600 hover:underline">
           ← Invoices
-        </a>
+        </Link>
         <h1 className="mt-1 text-xl font-semibold text-slate-900">New Invoice</h1>
       </div>
       <NewInvoiceForm contacts={contacts} assignments={assignments} />
