@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-08T13:55:59Z",
+  "updated_at": "2026-07-08T19:19:51Z",
   "period_days": 7,
   "repo": "Asterion-Technology/Factory",
   "repos": ["Asterion-Technology/Factory","Gyro06/Haven"],
@@ -12,7 +12,7 @@
   },
   "langfuse_connected": true,
   "cost": {
-    "total": 0.0009,
+    "total": 0.0008,
     "saved_rtk": 0,
     "claude_tokens": 0,
     "codex_tokens": 0,
@@ -22,9 +22,9 @@
     "merged_this_week": 5,
     "open": 0,
     "avg_cycle_hours": 0.1,
-    "ci_pass_rate": 84,
+    "ci_pass_rate": 89,
     "codex_blocks": 0,
-    "by_repo": [{"repo":"Asterion-Technology/Factory","merged_this_week":5,"open":0,"avg_cycle_hours":0.1,"ci_pass_rate":84,"codex_blocks":0},{"repo":"Gyro06/Haven","merged_this_week":0,"open":0,"avg_cycle_hours":0.0,"ci_pass_rate":0,"codex_blocks":0}]
+    "by_repo": [{"repo":"Asterion-Technology/Factory","merged_this_week":5,"open":0,"avg_cycle_hours":0.1,"ci_pass_rate":89,"codex_blocks":0},{"repo":"Gyro06/Haven","merged_this_week":0,"open":0,"avg_cycle_hours":0.0,"ci_pass_rate":0,"codex_blocks":0}]
   },
   "security": {
     "gitleaks": "pass",
