@@ -1,0 +1,23 @@
+// Template — apps/web on Workers via OpenNext. Placeholder IDs; provisioning
+// is gated (see README.md). Copy per environment or use wrangler environments.
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "stopallcalls-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "stopallcalls-dev", "database_id": "PLACEHOLDER" }
+  ],
+  "r2_buckets": [
+    { "binding": "EVIDENCE_BUCKET", "bucket_name": "stopallcalls-evidence-dev" },
+    { "binding": "DOCUMENTS_BUCKET", "bucket_name": "stopallcalls-documents-dev" }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "JOBS_QUEUE", "queue": "stopallcalls-jobs-dev" }
+    ]
+  },
+  "observability": { "enabled": true }
+}

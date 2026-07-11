@@ -1,0 +1,7 @@
+{
+  "name": "@stopallcalls/db",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "D1 schema draft and migrations (SRS §6). Repository layer arrives with Phase 1."
+}

@@ -1,0 +1,26 @@
+// Template — workers/jobs queue consumers. Placeholder IDs; provisioning is
+// gated (see README.md).
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "stopallcalls-jobs",
+  "main": "../workers/jobs/src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "stopallcalls-dev", "database_id": "PLACEHOLDER" }
+  ],
+  "r2_buckets": [
+    { "binding": "EVIDENCE_BUCKET", "bucket_name": "stopallcalls-evidence-dev" }
+  ],
+  "queues": {
+    "consumers": [
+      {
+        "queue": "stopallcalls-jobs-dev",
+        "max_batch_size": 10,
+        "max_retries": 5,
+        "dead_letter_queue": "stopallcalls-jobs-dlq-dev"
+      }
+    ]
+  },
+  "observability": { "enabled": true }
+}

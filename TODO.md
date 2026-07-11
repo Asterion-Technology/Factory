@@ -2,6 +2,77 @@
 
 ## Out-of-Scope Issues Found
 
+### Factory Infrastructure
+
+#### Security
+- [ ] **URGENT (AST-108)** — `next` 15.3.3 in root `package-lock.json` has 10 CVEs incl. CVE-2025-55182 (CRITICAL, pre-auth RCE via React Server Components); Trivy gate red on every PR because of it
+  - Location: `package-lock.json` (root)
+  - Risk: Pre-auth RCE if any deployed environment serves this build; also blocks the Dependency Scan gate for all PRs
+  - Suggested fix: Bump to ≥ 15.3.6 (or 15.5.18 / 16.2.6 to clear all listed CVEs); verify Railway preview/staging aren't serving an affected build
+- [ ] Gitleaks gate broken since org transfer (AST-109) — `gitleaks-action@v2` demands a `GITLEAKS_LICENSE` secret for organization-owned repos; fails in ~5s on every run, so no secrets scanning is actually happening
+  - Location: `.github/workflows/ci.yml` (Secrets Scan job)
+  - Risk: Secrets could merge unscanned; gate change requires human approval
+  - Suggested fix: Add `GITLEAKS_LICENSE` secret, or swap the action for a direct `gitleaks` CLI step (CLI is MIT, license-free)
+- [ ] Secrets sprawl with name drift across three stores — `.env`, `.devcontainer/.env`, and Windows HKCU user env vars hold overlapping secrets under inconsistent names (`SENTRY_ACCESS_TOKEN` vs `SENTRY_TOKEN`, `FIGMA_API_KEY` vs `FIGMA_ACCESS_TOKEN`, `MONGODB_CONNECTION_STRING` vs `MONGODB_URI`)
+  - Location: repo root `.env`, `.devcontainer/.env`, `HKCU\Environment`
+  - Risk: Stale/dead credentials silently shadow valid ones (caused the 2026-07-06 MCP outage: placeholder `your-value` registry vars broke Linear/Neon/Railway; a revoked `GITHUB_TOKEN` in the registry shadowed the valid one)
+  - Suggested fix: Declare `.devcontainer/.env` the single source of truth; add a `scripts/sync-env-to-registry.sh` (or extend `bootstrap.sh`) that syncs it to HKCU; delete drifted legacy names (`SENTRY_ACCESS_TOKEN`, `FIGMA_API_KEY`, `MONGODB_CONNECTION_STRING`, `LINEAR_WEBHOOK_SECRET=your-value`) from the registry
+- [ ] Revoked GitHub PAT still stored in `HKCU\Environment` before 2026-07-06 sync — delete it from GitHub token settings if not already; confirm the replacement PAT has least-privilege scopes
+  - Location: was `HKCU\Environment\GITHUB_TOKEN`
+  - Risk: Low (token returns 401) but dead credentials should be cleaned up at the issuer
+  - Suggested fix: Audit https://github.com/settings/tokens and revoke unused PATs
+- [ ] `RAILWAY_TOKEN` is revoked/expired at the source (2026-07-06) — `.devcontainer/.env` and the synced Windows env hold the same dead token; Railway API rejects it as both an account token and a project token. Breaks `railway` CLI, `factory-railway` MCP, and the npx `railway` MCP server
+  - Location: `.devcontainer/.env` → `HKCU\Environment\RAILWAY_TOKEN`
+  - Risk: No deployment status/log visibility from the factory; bootstrap `--check` reports it "ok" because it only tests presence, not validity
+  - Suggested fix: Mint a new token in the Railway dashboard, update `.devcontainer/.env`, re-sync to HKCU; consider adding a lightweight validity probe (`railway whoami`) to `bootstrap.sh --check`
+
+#### Technical Debt
+- [ ] `scripts/serve-dashboard.sh` prefers `npx serve`, which leaks a file handle per request on Windows — the Observation Deck polls `events.jsonl` every 3s, so the server crashes with `EMFILE: too many open files` after ~90 minutes (observed 2026-07-08)
+  - Location: `scripts/serve-dashboard.sh` (npx branch)
+  - Suggested fix: prefer the Python `http.server` branch on Windows (no leak), or pin a static-server package without the leak; Python fallback verified working on port 3099
+- [ ] `.mcp.json` is untracked — decide whether to commit it (current version contains only `${VAR}` references, no literal secrets, so it is safe to track)
+  - Location: `.mcp.json`
+  - Suggested fix: `git add .mcp.json` on a feature branch once the 2026-07-06 rewrite is confirmed working
+- [ ] `factory-knowledge` requires local ChromaDB (`docker compose -f knowledge/docker-compose.yml up -d`) — not started automatically
+  - Location: `knowledge/docker-compose.yml`, `mcp/servers/knowledge/index.js`
+  - Suggested fix: Add a health check + start hint to `scripts/bootstrap.sh`
+- [ ] MCP servers pass literal `${VAR}` strings downstream when an env var is unset (e.g. `Failed to parse URL from ${MEILI_HOST}/health`) — servers should fail fast at startup with a clear message
+  - Location: `mcp/servers/*/index.js`
+  - Suggested fix: Validate required env vars on boot and exit with a named-variable error
+- [ ] `railway` MCP server defined in two conflicting scopes — user scope points to `https://mcp.railway.com`, project scope to `npx @railway/mcp-server`; OAuth/token state doesn't carry across, and the npx one fails to connect
+  - Location: user-level MCP config + `.mcp.json`
+  - Suggested fix: `claude mcp remove railway -s user` (or `-s project`) — keep one
+- [ ] `map_job_status()` in `scripts/metrics-collector.sh` still greps pretty-printed JSON with `"name":"..."` (no space after colon) — the exact zero-width-match pattern that made every PR metric read 0 before; security-gate statuses likely always fall through to the default
+  - Location: `scripts/metrics-collector.sh` (security gate section)
+  - Suggested fix: Parse the jobs response with node like the PR metrics now do
+- [ ] Haven metrics in the Metrics Collection workflow depend on a `CROSS_REPO_TOKEN` repo secret (auto `GITHUB_TOKEN` can't read Gyro06/Haven) — Haven counts silently read 0 if the secret is missing/expired
+  - Location: `.github/workflows/metrics.yml`
+  - Suggested fix: Confirm `CROSS_REPO_TOKEN` exists in Asterion-Technology/Factory repo secrets after PR #6 merges; if Haven's by_repo entry stays all-zero on a real week, that's the tell
+
+### StopAllCalls (projects/stopallcalls — AST-167 / AST-168)
+
+#### Deferred from Phase 0 scaffold PR
+- [ ] Cloudflare resource provisioning (D1, R2 buckets, Queues, Access, Turnstile) — `infra/wrangler.*.jsonc` hold placeholder IDs
+  - Location: `projects/stopallcalls/infra/`
+  - Suggested fix: Provision per environment (dev/preview/staging/prod, OPS-001) after human approval of the Cloudflare account/secrets; fill IDs and add `wrangler`/`@opennextjs/cloudflare` devDependencies at that point
+- [ ] Factory CI does not run StopAllCalls checks (pnpm typecheck/lint/test) — `.github/workflows/` changes are human-gated
+  - Location: `.github/workflows/ci.yml`
+  - Suggested fix: Add a path-filtered job for `projects/stopallcalls/**` with human approval of the workflow change
+- [ ] Threat model document not yet authored (Phase 0 exit item, SRS §14)
+  - Location: `projects/stopallcalls/docs/`
+  - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
+- [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
+
+#### Product owner / counsel clarification needed (SRS §16 open decisions)
+- [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
+  - Location: `projects/stopallcalls/docs/BUILD_PLAN.md` (open decisions table)
+  - Suggested fix: Review with qualified counsel; record each decision as configuration, not code
+
+#### Factory Infrastructure (found during this build)
+- [ ] `config/repos.yaml` declares `base: "d:/REPO"` but Haven's `local_path` is an absolute `C:/Users/RDM71/REPO/Haven` — cross-drive inconsistency if tooling resolves paths against `base`
+  - Location: `config/repos.yaml`
+  - Suggested fix: Support absolute-path overrides explicitly in `scripts/resolve-repo.sh` docs, or normalize the manifest
+
 ### Notary Control Hub
 
 #### Security
