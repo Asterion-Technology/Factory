@@ -9,7 +9,7 @@ export type {
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
-} from './types.js';
+} from './types';
 export {
   FakeClioAdapter,
   FakeEmailAdapter,
@@ -17,4 +17,4 @@ export {
   FakePaymentAdapter,
   FakePdfAdapter,
   FakeSignatureAdapter,
-} from './fakes.js';
+} from './fakes';

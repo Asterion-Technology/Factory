@@ -5,7 +5,7 @@ export {
   type IntakeState,
   type MatterState,
   type TransitionRecord,
-} from './states.js';
+} from './states';
 export {
   GATES,
   HUMAN_ONLY_GATES,
@@ -17,4 +17,4 @@ export {
   type GateResult,
   type GateSnapshot,
   type GateStatus,
-} from './gates.js';
+} from './gates';

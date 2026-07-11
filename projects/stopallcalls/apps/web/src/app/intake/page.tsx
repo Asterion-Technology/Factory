@@ -1,12 +1,20 @@
-// Phase 1 (AST-169) builds the real multi-step intake here.
-export default function IntakePlaceholderPage() {
+import type { Metadata } from 'next';
+import IntakeWizard from './IntakeWizard';
+
+export const metadata: Metadata = {
+  title: 'Start Intake — StopAllCalls',
+  robots: { index: false },
+};
+
+export default function IntakePage() {
   return (
     <main>
-      <h1>Intake coming soon</h1>
+      <h1>Start your intake</h1>
       <p>
-        The secure intake is under construction (Phase 1 — AST-169). No information is collected
-        on this page yet.
+        Your progress is saved after each step — you can safely close this page and return later
+        from the same browser.
       </p>
+      <IntakeWizard />
     </main>
   );
 }

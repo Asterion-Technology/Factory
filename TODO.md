@@ -63,6 +63,15 @@
   - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
 - [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
 
+#### Phase 1 remaining (AST-169 stays In Progress)
+- [ ] Consumer email/phone verification with magic link or one-time code (INT-002) — current session is an anonymous HttpOnly cookie; verification flow needs the email adapter wired into a `/api/auth` route
+  - Location: `projects/stopallcalls/apps/web/src/lib/api.ts` (session), `packages/integrations` (FakeEmailAdapter ready)
+- [ ] Turnstile + rate limiting on intake creation (INT-008) — blocked on Cloudflare provisioning; TODO marker in `apps/web/src/app/api/intakes/route.ts`
+- [ ] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion)
+- [ ] D1-backed IntakeStore — in-memory store (`packages/db/src/memory.ts`) is dev-only and loses drafts on server restart; swap behind the `IntakeStore` interface once D1 is provisioned
+- [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
+- [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
+
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
   - Location: `projects/stopallcalls/docs/BUILD_PLAN.md` (open decisions table)

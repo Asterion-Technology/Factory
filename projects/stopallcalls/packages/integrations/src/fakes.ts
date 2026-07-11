@@ -13,7 +13,7 @@ import type {
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
-} from './types.js';
+} from './types';
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);

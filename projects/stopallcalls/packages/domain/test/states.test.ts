@@ -8,7 +8,7 @@ import {
   canTransition,
   type GateResult,
   type GateSnapshot,
-} from '../src/index.js';
+} from '../src/index';
 
 describe('intake state machine (SRS §4.1)', () => {
   it('allows the happy path in order', () => {

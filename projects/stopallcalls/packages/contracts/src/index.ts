@@ -1,1 +1,1 @@
-export * from './intake.js';
+export * from './intake';

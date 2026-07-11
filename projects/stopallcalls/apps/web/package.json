@@ -9,9 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stopallcalls/contracts": "workspace:*",
+    "@stopallcalls/db": "workspace:*",
+    "@stopallcalls/domain": "workspace:*",
     "next": "^15.3.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",

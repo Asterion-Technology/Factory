@@ -12,6 +12,10 @@
     "allowJs": true,
     "incremental": true,
     "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "types": [
       "node",
       "react",

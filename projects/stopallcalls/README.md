@@ -46,7 +46,7 @@ No real provider credentials are needed — fakes are the default (`.env.example
 | Phase | Status |
 |---|---|
 | 0 — Foundation | ✅ scaffolded (AST-168) |
-| 1 — Intake MVP | ⏳ backlog (AST-169) |
+| 1 — Intake MVP | 🔨 in progress (AST-169) — multi-step intake, save/resume, submission snapshot done; email verification, Turnstile, E2E tests remain |
 | 2 — Evidence | ⏳ backlog (AST-170) |
 | 3 — Conflict + Clio | ⏳ backlog (AST-171) |
 | 4 — Identity/Retainer/Payment | ⏳ backlog (AST-172) |
