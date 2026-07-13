@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-13T14:26:34Z",
+  "updated_at": "2026-07-13T19:19:21Z",
   "period_days": 7,
   "repo": "Asterion-Technology/Factory",
   "repos": ["Asterion-Technology/Factory","Gyro06/Haven"],
@@ -12,7 +12,7 @@
   },
   "langfuse_connected": true,
   "cost": {
-    "total": 0.0008,
+    "total": 0.0002,
     "saved_rtk": 0,
     "claude_tokens": 0,
     "codex_tokens": 0,
