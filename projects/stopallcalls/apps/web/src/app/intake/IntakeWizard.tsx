@@ -85,6 +85,8 @@ export default function IntakeWizard() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [agencyForm, setAgencyForm] = useState(EMPTY_AGENCY);
+  // INT-004 edit: id of the agency loaded into the form, null = adding.
+  const [editingAgencyId, setEditingAgencyId] = useState<string | null>(null);
   const [evidenceList, setEvidenceList] = useState<ClientEvidence[]>([]);
   const [evidenceCategory, setEvidenceCategory] = useState<string>('COLLECTION_LETTER');
   const [attest, setAttest] = useState({
@@ -206,7 +208,7 @@ export default function IntakeWizard() {
     });
   };
 
-  const addAgency = (e: FormEvent) => {
+  const saveAgency = (e: FormEvent) => {
     e.preventDefault();
     if (!intake) return;
     void run(async () => {
@@ -220,12 +222,39 @@ export default function IntakeWizard() {
         contactChannels: agencyForm.contactChannels,
         allegations: [],
       };
-      const { intake: updated } = await api<{ intake: ClientIntake }>(`/api/intakes/${intake.id}/agencies`, {
-        method: 'POST',
+      const path = editingAgencyId
+        ? `/api/intakes/${intake.id}/agencies/${editingAgencyId}`
+        : `/api/intakes/${intake.id}/agencies`;
+      const { intake: updated } = await api<{ intake: ClientIntake }>(path, {
+        method: editingAgencyId ? 'PATCH' : 'POST',
         body: JSON.stringify({ expectedVersion: intake.version, agency }),
       });
       setIntake(updated);
       setAgencyForm(EMPTY_AGENCY);
+      setEditingAgencyId(null);
+    });
+  };
+
+  const startEditAgency = (agency: StoredAgency) => {
+    setEditingAgencyId(agency.id);
+    setAgencyForm({
+      agencyName: agency.entry.agencyName,
+      agencyPhone: agency.entry.agencyPhone ?? '',
+      originalCreditor: agency.entry.originalCreditor ?? '',
+      amountClaimed:
+        agency.entry.amountClaimedCents != null ? String(agency.entry.amountClaimedCents / 100) : '',
+      contactChannels: [...agency.entry.contactChannels],
+    });
+  };
+
+  const duplicateAgencyItem = (agencyId: string) => {
+    if (!intake) return;
+    void run(async () => {
+      const { intake: updated } = await api<{ intake: ClientIntake }>(
+        `/api/intakes/${intake.id}/agencies/${agencyId}/duplicate`,
+        { method: 'POST', body: JSON.stringify({ expectedVersion: intake.version }) },
+      );
+      setIntake(updated);
     });
   };
 
@@ -467,15 +496,23 @@ export default function IntakeWizard() {
                     <strong>{a.entry.agencyName}</strong>
                     {a.entry.originalCreditor ? ` — originally ${a.entry.originalCreditor}` : ''}
                   </span>
-                  <button type="button" className="link" disabled={busy} onClick={() => removeAgency(a.id)}>
-                    Remove
-                  </button>
+                  <span>
+                    <button type="button" className="link" disabled={busy} onClick={() => startEditAgency(a)}>
+                      Edit
+                    </button>{' '}
+                    <button type="button" className="link" disabled={busy} onClick={() => duplicateAgencyItem(a.id)}>
+                      Duplicate
+                    </button>{' '}
+                    <button type="button" className="link" disabled={busy} onClick={() => removeAgency(a.id)}>
+                      Remove
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>
           )}
 
-          <form onSubmit={addAgency}>
+          <form onSubmit={saveAgency}>
             <div className="grid">
               <label>
                 Collection agency name
@@ -515,8 +552,21 @@ export default function IntakeWizard() {
               ))}
             </fieldset>
             <button className="cta secondary" type="submit" disabled={busy || agencyForm.contactChannels.length === 0}>
-              + Add this agency
+              {editingAgencyId ? 'Save changes' : '+ Add this agency'}
             </button>
+            {editingAgencyId && (
+              <button
+                type="button"
+                className="link"
+                disabled={busy}
+                onClick={() => {
+                  setEditingAgencyId(null);
+                  setAgencyForm(EMPTY_AGENCY);
+                }}
+              >
+                Cancel edit
+              </button>
+            )}
           </form>
 
           <div className="nav-row">

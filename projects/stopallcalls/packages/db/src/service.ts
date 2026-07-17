@@ -105,6 +105,49 @@ export async function addAgency(
   return saveOrConflict(store, record, expectedVersion);
 }
 
+/** INT-004 edit: replaces the entry, keeping the stored agency id stable. */
+export async function updateAgency(
+  store: IntakeStore,
+  consumerKey: string,
+  intakeId: string,
+  agencyId: string,
+  entry: AgencyEntry,
+  expectedVersion: number,
+): Promise<IntakeRecord> {
+  const parsed = agencyEntrySchema.parse(entry);
+  const record = await getOwned(store, consumerKey, intakeId);
+  assertDraft(record);
+  const target = record.agencies.find((a) => a.id === agencyId);
+  if (!target) {
+    throw new ServiceError(404, 'NOT_FOUND', 'Agency entry not found.');
+  }
+  record.agencies = record.agencies.map((a) => (a.id === agencyId ? { ...a, entry: parsed } : a));
+  return saveOrConflict(store, record, expectedVersion);
+}
+
+/** INT-004 duplicate: copies an entry as a new independent agency row. */
+export async function duplicateAgency(
+  store: IntakeStore,
+  consumerKey: string,
+  intakeId: string,
+  agencyId: string,
+  expectedVersion: number,
+  maxAgencies: number = DEFAULT_MAX_AGENCIES,
+): Promise<IntakeRecord> {
+  const record = await getOwned(store, consumerKey, intakeId);
+  assertDraft(record);
+  const source = record.agencies.find((a) => a.id === agencyId);
+  if (!source) {
+    throw new ServiceError(404, 'NOT_FOUND', 'Agency entry not found.');
+  }
+  if (record.agencies.length >= maxAgencies) {
+    throw new ServiceError(422, 'AGENCY_LIMIT', `A maximum of ${maxAgencies} collection agencies is supported per intake.`);
+  }
+  const copy: StoredAgency = { id: crypto.randomUUID(), entry: structuredClone(source.entry) };
+  record.agencies = [...record.agencies, copy];
+  return saveOrConflict(store, record, expectedVersion);
+}
+
 export async function removeAgency(
   store: IntakeStore,
   consumerKey: string,

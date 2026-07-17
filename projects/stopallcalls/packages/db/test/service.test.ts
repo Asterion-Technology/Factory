@@ -5,6 +5,8 @@ import {
   ServiceError,
   addAgency,
   createOrResumeIntake,
+  duplicateAgency,
+  updateAgency,
   removeAgency,
   saveProfile,
   submitIntake,
@@ -90,6 +92,49 @@ describe('optimistic concurrency (API-002)', () => {
 });
 
 describe('agencies (INT-004)', () => {
+  it('edits an entry in place, keeping its id', async () => {
+    const store = new InMemoryIntakeStore();
+    let intake = await draftWithProfile(store);
+    intake = await addAgency(store, 'session-a', intake.id, AGENCY, intake.version);
+    const agencyId = intake.agencies[0]!.id;
+    intake = await updateAgency(
+      store,
+      'session-a',
+      intake.id,
+      agencyId,
+      { ...AGENCY, agencyName: 'Renamed Collections (Fictitious)' },
+      intake.version,
+    );
+    expect(intake.agencies).toHaveLength(1);
+    expect(intake.agencies[0]!.id).toBe(agencyId);
+    expect(intake.agencies[0]!.entry.agencyName).toBe('Renamed Collections (Fictitious)');
+  });
+
+  it('duplicates an entry as an independent row and enforces the cap', async () => {
+    const store = new InMemoryIntakeStore();
+    let intake = await draftWithProfile(store);
+    intake = await addAgency(store, 'session-a', intake.id, AGENCY, intake.version);
+    const sourceId = intake.agencies[0]!.id;
+    intake = await duplicateAgency(store, 'session-a', intake.id, sourceId, intake.version);
+    expect(intake.agencies).toHaveLength(2);
+    expect(intake.agencies[1]!.id).not.toBe(sourceId);
+    expect(intake.agencies[1]!.entry.agencyName).toBe(AGENCY.agencyName);
+    await expect(duplicateAgency(store, 'session-a', intake.id, sourceId, intake.version, 2)).rejects.toMatchObject({
+      code: 'AGENCY_LIMIT',
+    });
+  });
+
+  it('404s edit/duplicate for unknown agency ids', async () => {
+    const store = new InMemoryIntakeStore();
+    const intake = await draftWithProfile(store);
+    await expect(updateAgency(store, 'session-a', intake.id, 'nope', AGENCY, intake.version)).rejects.toMatchObject({
+      status: 404,
+    });
+    await expect(duplicateAgency(store, 'session-a', intake.id, 'nope', intake.version)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
   it('adds and removes entries', async () => {
     const store = new InMemoryIntakeStore();
     let intake = await draftWithProfile(store);

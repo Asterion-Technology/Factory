@@ -6,10 +6,12 @@ export {
   ServiceError,
   addAgency,
   createOrResumeIntake,
+  duplicateAgency,
   removeAgency,
   saveProfile,
   submitIntake,
   toClientIntake,
+  updateAgency,
 } from './service';
 export type {
   CustodyEvent,

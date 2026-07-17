@@ -81,6 +81,20 @@ test('full intake: verify, profile, multiple agencies, submit (INT-002..008)', a
     .click();
   await expect(page.locator('.agency-list li')).toHaveCount(1);
 
+  // Edit in place (INT-004 edit): rename and save.
+  await page.locator('.agency-list li').getByRole('button', { name: 'Edit' }).click();
+  await expect(page.getByLabel('Collection agency name')).toHaveValue('ABC Collections (Fictitious)');
+  await page.getByLabel('Collection agency name').fill('ABC Collections Renamed (Fictitious)');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.locator('.agency-list')).toContainText('ABC Collections Renamed (Fictitious)');
+  await expect(page.locator('.agency-list li')).toHaveCount(1);
+
+  // Duplicate (INT-004 duplicate): copy, then remove the copy.
+  await page.locator('.agency-list li').getByRole('button', { name: 'Duplicate' }).click();
+  await expect(page.locator('.agency-list li')).toHaveCount(2);
+  await page.locator('.agency-list li').last().getByRole('button', { name: 'Remove' }).click();
+  await expect(page.locator('.agency-list li')).toHaveCount(1);
+
   // Proof upload: a clean PNG is scanned and accepted (EVD-004/005).
   await goToEvidenceStep(page);
   await page.getByLabel('Choose a file (PDF, image, audio, or text)').setInputFiles(PNG_FILE);
