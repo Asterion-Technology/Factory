@@ -83,7 +83,10 @@
 
 #### Phase 2 — Evidence (RAD-11, started 2026-07-16)
 - [x] Upload pipeline: validated request → signed-URL PUT → magic-byte/MIME + size verification → sha256 → quarantine → scan → CLEAN/INFECTED, chain-of-custody events, soft removal; wizard "Proof upload" step; 12 unit + 4 E2E tests
-- [ ] Real R2 storage adapter (presigned PUT/GET) replacing `FakeStorageAdapter` — buckets exist; adapter lands with the deploy wiring
+- [x] Real R2 storage adapter (2026-07-16): `R2StorageAdapter` — SigV4 query-presigned PUT (verified live against `stopallcalls-evidence-dev`, opt-in test `r2.live.test.ts`) + binding-backed get/delete; swapped in at deploy wiring
+- [x] D1-backed stores (2026-07-16): `D1IntakeStore`/`D1AuthStore`/`D1EvidenceStore` + `migrations/0001_baseline.sql`, tested against real D1 via vitest-pool-workers (`pnpm --filter @stopallcalls/db test:d1`; pinned 0.12.x — 0.13+ needs vitest 4)
+- [ ] APPROVAL NEEDED: apply `0001_baseline.sql` to the remote `stopallcalls-dev` D1 — requires dropping the empty draft `intakes`/`evidence_files` tables first (drop + migration are human-gated); staged command: `wrangler d1 execute stopallcalls-dev --remote --command "DROP TABLE intakes; DROP TABLE evidence_files;"` then `--file packages/db/migrations/0001_baseline.sql` (drop remaining draft tables too if re-baselining wholesale)
+- [ ] Wire D1/R2 adapters into `apps/web` at deploy: OpenNext `getCloudflareContext()` selects D1/R2/queue-backed implementations when bindings exist, fakes otherwise; includes `@opennextjs/cloudflare` build wiring
 - [ ] Scan via `stopallcalls-jobs-dev` queue consumer instead of inline (interface `FinalizeDeps` unchanged); real malware scanning service selection pending
 - [ ] Staff evidence-review workspace + sufficiency rule (EVD-009/EVD-010) and credit-report handling (EVD-008) — needs Cloudflare Access (staff SSO) first
 - [ ] Attestation-only path (no uploads) flagged for lawyer review — SRS gate alternative, needs product-owner wording

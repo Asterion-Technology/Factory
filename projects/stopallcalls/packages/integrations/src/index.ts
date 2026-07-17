@@ -14,6 +14,8 @@ export type {
   TurnstileAdapter,
 } from './types';
 export { CloudflareTurnstileAdapter } from './turnstile';
+export type { R2BucketLike, R2StorageConfig } from './r2';
+export { R2StorageAdapter } from './r2';
 export {
   FAKE_MALWARE_MARKER,
   FakeClioAdapter,

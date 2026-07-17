@@ -8,13 +8,15 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:d1": "vitest run -c vitest.workers.config.ts"
   },
   "dependencies": {
     "@stopallcalls/contracts": "workspace:*",
     "@stopallcalls/domain": "workspace:*"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.21",
     "@cloudflare/workers-types": "^4.20250110.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
