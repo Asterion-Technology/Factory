@@ -9,6 +9,21 @@ export {
   submitIntake,
   toClientIntake,
 } from './service';
+export type {
+  CustodyEvent,
+  EvidenceRecord,
+  EvidenceScanStatus,
+  EvidenceStore,
+  FinalizeDeps,
+} from './evidence';
+export {
+  InMemoryEvidenceStore,
+  finalizeEvidenceUpload,
+  listEvidence,
+  removeEvidence,
+  requestEvidenceUpload,
+  toClientEvidence,
+} from './evidence';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,

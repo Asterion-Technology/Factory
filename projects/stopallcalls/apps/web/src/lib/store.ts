@@ -1,14 +1,21 @@
 import {
   InMemoryAuthStore,
+  InMemoryEvidenceStore,
   InMemoryIntakeStore,
   SlidingWindowRateLimiter,
   type AuthStore,
+  type EvidenceStore,
   type IntakeStore,
 } from '@stopallcalls/db';
 import {
+  CloudflareTurnstileAdapter,
   FakeEmailAdapter,
+  FakeMalwareScanner,
+  FakeStorageAdapter,
   FakeTurnstileAdapter,
   type EmailAdapter,
+  type MalwareScanner,
+  type StorageAdapter,
   type TurnstileAdapter,
 } from '@stopallcalls/integrations';
 
@@ -17,17 +24,23 @@ import {
 // provisioning (DEV-003).
 const INTAKE_KEY = Symbol.for('stopallcalls.intakeStore');
 const AUTH_KEY = Symbol.for('stopallcalls.authStore');
+const EVIDENCE_KEY = Symbol.for('stopallcalls.evidenceStore');
 const LIMITER_KEY = Symbol.for('stopallcalls.rateLimiter');
 const EMAIL_KEY = Symbol.for('stopallcalls.emailAdapter');
 const TURNSTILE_KEY = Symbol.for('stopallcalls.turnstileAdapter');
+const STORAGE_KEY = Symbol.for('stopallcalls.storageAdapter');
+const SCANNER_KEY = Symbol.for('stopallcalls.malwareScanner');
 const DEV_CODES_KEY = Symbol.for('stopallcalls.devCodes');
 
 type Singletons = {
   [INTAKE_KEY]?: IntakeStore;
   [AUTH_KEY]?: AuthStore;
+  [EVIDENCE_KEY]?: EvidenceStore;
   [LIMITER_KEY]?: SlidingWindowRateLimiter;
   [EMAIL_KEY]?: EmailAdapter;
   [TURNSTILE_KEY]?: TurnstileAdapter;
+  [STORAGE_KEY]?: StorageAdapter;
+  [SCANNER_KEY]?: MalwareScanner;
   [DEV_CODES_KEY]?: Map<string, string>;
 };
 
@@ -48,13 +61,33 @@ export function getRateLimiter(): SlidingWindowRateLimiter {
   return g[LIMITER_KEY];
 }
 
+export function getEvidenceStore(): EvidenceStore {
+  g[EVIDENCE_KEY] ??= new InMemoryEvidenceStore();
+  return g[EVIDENCE_KEY];
+}
+
+// The R2-presigning adapter replaces the fake at deploy; the PUT /api/uploads
+// dev sink only operates when the fake is active.
+export function getStorageAdapter(): StorageAdapter {
+  g[STORAGE_KEY] ??= new FakeStorageAdapter();
+  return g[STORAGE_KEY];
+}
+
+export function getMalwareScanner(): MalwareScanner {
+  g[SCANNER_KEY] ??= new FakeMalwareScanner();
+  return g[SCANNER_KEY];
+}
+
 export function getEmailAdapter(): EmailAdapter {
   g[EMAIL_KEY] ??= new FakeEmailAdapter();
   return g[EMAIL_KEY];
 }
 
+// Real siteverify when the secret is configured (INT-008); fake otherwise
+// (DEV-003 default, and what E2E runs against).
 export function getTurnstileAdapter(): TurnstileAdapter {
-  g[TURNSTILE_KEY] ??= new FakeTurnstileAdapter();
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  g[TURNSTILE_KEY] ??= secret ? new CloudflareTurnstileAdapter(secret) : new FakeTurnstileAdapter();
   return g[TURNSTILE_KEY];
 }
 

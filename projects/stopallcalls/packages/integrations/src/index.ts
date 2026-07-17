@@ -5,18 +5,24 @@ export type {
   EmailAdapter,
   IdentityAdapter,
   IdentityStatus,
+  MalwareScanner,
   PaymentAdapter,
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
+  StorageAdapter,
   TurnstileAdapter,
 } from './types';
+export { CloudflareTurnstileAdapter } from './turnstile';
 export {
+  FAKE_MALWARE_MARKER,
   FakeClioAdapter,
   FakeEmailAdapter,
   FakeIdentityAdapter,
+  FakeMalwareScanner,
   FakePaymentAdapter,
   FakePdfAdapter,
   FakeSignatureAdapter,
+  FakeStorageAdapter,
   FakeTurnstileAdapter,
 } from './fakes';

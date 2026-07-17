@@ -16,12 +16,26 @@ interface ClientIntake {
   version: number;
 }
 
-type Step = 'verify' | 'profile' | 'agencies' | 'review';
+import TurnstileWidget from './TurnstileWidget';
 
-// INT-008: the widget token. Until Cloudflare provisioning supplies
-// NEXT_PUBLIC_TURNSTILE_SITE_KEY and the real widget renders, the fake
-// server-side adapter accepts this placeholder.
-const TURNSTILE_TOKEN_PLACEHOLDER = 'dev-turnstile-token';
+type Step = 'verify' | 'profile' | 'agencies' | 'evidence' | 'review';
+
+interface ClientEvidence {
+  id: string;
+  category: string;
+  originalFilename: string;
+  sizeBytes: number;
+  scanStatus: string;
+}
+
+const EVIDENCE_CATEGORIES = [
+  ['COLLECTION_LETTER', 'Collection letter'],
+  ['SCREENSHOT', 'Screenshot (text/email/call)'],
+  ['CALL_LOG', 'Call log'],
+  ['VOICEMAIL', 'Voicemail recording'],
+  ['EMAIL_TEXT', 'Email or text message'],
+  ['CREDIT_REPORT', 'Credit report'],
+] as const;
 
 const EMPTY_PROFILE = {
   firstName: '',
@@ -63,8 +77,13 @@ export default function IntakeWizard() {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authForm, setAuthForm] = useState({ email: '', code: '' });
   const [codeSent, setCodeSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Turnstile tokens are single-use: remount the widget after a failed send.
+  const [widgetGeneration, setWidgetGeneration] = useState(0);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [agencyForm, setAgencyForm] = useState(EMPTY_AGENCY);
+  const [evidenceList, setEvidenceList] = useState<ClientEvidence[]>([]);
+  const [evidenceCategory, setEvidenceCategory] = useState<string>('COLLECTION_LETTER');
   const [attest, setAttest] = useState({
     isConsumer: false,
     contactConfirmed: false,
@@ -127,12 +146,19 @@ export default function IntakeWizard() {
 
   const sendCode = (e: FormEvent) => {
     e.preventDefault();
+    if (!turnstileToken) return;
     void run(async () => {
-      await api('/api/auth/start', {
-        method: 'POST',
-        body: JSON.stringify({ email: authForm.email, turnstileToken: TURNSTILE_TOKEN_PLACEHOLDER }),
-      });
-      setCodeSent(true);
+      try {
+        await api('/api/auth/start', {
+          method: 'POST',
+          body: JSON.stringify({ email: authForm.email, turnstileToken }),
+        });
+        setCodeSent(true);
+      } catch (err) {
+        setTurnstileToken(null);
+        setWidgetGeneration((g) => g + 1);
+        throw err;
+      }
     });
   };
 
@@ -210,6 +236,51 @@ export default function IntakeWizard() {
     });
   };
 
+  const refreshEvidence = useCallback(async (intakeId: string) => {
+    const { evidence } = await api<{ evidence: ClientEvidence[] }>(`/api/intakes/${intakeId}/evidence`);
+    setEvidenceList(evidence);
+  }, []);
+
+  useEffect(() => {
+    if (step === 'evidence' && intake) {
+      refreshEvidence(intake.id).catch(() => setError('Could not load your uploads.'));
+    }
+  }, [step, intake, refreshEvidence]);
+
+  const uploadEvidence = (file: File) => {
+    if (!intake) return;
+    void run(async () => {
+      const { evidence, upload } = await api<{ evidence: ClientEvidence; upload: { url: string; method: string } }>(
+        `/api/intakes/${intake.id}/evidence`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            category: evidenceCategory,
+            filename: file.name,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          }),
+        },
+      );
+      const put = await fetch(upload.url, { method: 'PUT', body: file });
+      if (!put.ok) throw new Error('The upload failed. Please try again.');
+      try {
+        await api(`/api/intakes/${intake.id}/evidence/${evidence.id}/complete`, { method: 'POST' });
+      } finally {
+        // Refresh even on rejection/infection so the verdict is visible.
+        await refreshEvidence(intake.id);
+      }
+    });
+  };
+
+  const removeEvidenceItem = (evidenceId: string) => {
+    if (!intake) return;
+    void run(async () => {
+      await api(`/api/intakes/${intake.id}/evidence/${evidenceId}`, { method: 'DELETE' });
+      await refreshEvidence(intake.id);
+    });
+  };
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!intake) return;
@@ -241,16 +312,17 @@ export default function IntakeWizard() {
   return (
     <div>
       <ol className="steps" aria-label="Intake progress">
-        {(['verify', 'profile', 'agencies', 'review'] as const).map((s, i) => (
+        {(
+          [
+            ['verify', 'Verify email'],
+            ['profile', 'Your information'],
+            ['agencies', 'Collection agencies'],
+            ['evidence', 'Proof upload'],
+            ['review', 'Review & submit'],
+          ] as const
+        ).map(([s, label], i) => (
           <li key={s} aria-current={step === s ? 'step' : undefined} className={step === s ? 'active' : ''}>
-            {i + 1}.{' '}
-            {s === 'verify'
-              ? 'Verify email'
-              : s === 'profile'
-                ? 'Your information'
-                : s === 'agencies'
-                  ? 'Collection agencies'
-                  : 'Review & submit'}
+            {i + 1}. {label}
           </li>
         ))}
       </ol>
@@ -306,7 +378,8 @@ export default function IntakeWizard() {
                 onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
               />
             </label>
-            <button className="cta" type="submit" disabled={busy || !authForm.email}>
+            <TurnstileWidget key={widgetGeneration} onToken={setTurnstileToken} />
+            <button className="cta" type="submit" disabled={busy || !authForm.email || !turnstileToken}>
               Send code
             </button>
           </form>
@@ -440,7 +513,75 @@ export default function IntakeWizard() {
             <button type="button" className="link" onClick={() => setStep('profile')}>
               ← Back
             </button>
-            <button type="button" className="cta" disabled={busy || intake.agencies.length === 0} onClick={() => setStep('review')}>
+            <button type="button" className="cta" disabled={busy || intake.agencies.length === 0} onClick={() => setStep('evidence')}>
+              Continue to proof upload
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === 'evidence' && intake && (
+        <section aria-label="Proof upload">
+          <p>
+            Upload proof of the collection contact — a collection letter, screenshot, call log,
+            voicemail, or your credit report. Files are scanned before they are accepted.
+            <strong> No proof means no letter can be sent</strong>, but you can continue now and
+            add proof later.
+          </p>
+
+          {evidenceList.length > 0 && (
+            <ul className="agency-list" aria-label="Uploaded files">
+              {evidenceList.map((ev) => (
+                <li key={ev.id}>
+                  <span>
+                    <strong>{ev.originalFilename}</strong>{' '}
+                    {ev.scanStatus === 'CLEAN'
+                      ? '— accepted'
+                      : ev.scanStatus === 'INFECTED'
+                        ? '— blocked by safety scan'
+                        : ev.scanStatus === 'REJECTED'
+                          ? '— failed validation'
+                          : '— processing'}
+                  </span>
+                  <button type="button" className="link" disabled={busy} onClick={() => removeEvidenceItem(ev.id)}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="grid">
+            <label>
+              What is this file?
+              <select value={evidenceCategory} onChange={(e) => setEvidenceCategory(e.target.value)}>
+                {EVIDENCE_CATEGORIES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Choose a file (PDF, image, audio, or text)
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.mp3,.wav,.m4a"
+                disabled={busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) uploadEvidence(file);
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="nav-row">
+            <button type="button" className="link" onClick={() => setStep('agencies')}>
+              ← Back
+            </button>
+            <button type="button" className="cta" disabled={busy} onClick={() => setStep('review')}>
               Continue to review
             </button>
           </div>
@@ -452,7 +593,9 @@ export default function IntakeWizard() {
           <h2>Review</h2>
           <p>
             {profileForm.firstName} {profileForm.lastName} · {profileForm.email} ·{' '}
-            {intake.agencies.length} collection {intake.agencies.length === 1 ? 'agency' : 'agencies'}
+            {intake.agencies.length} collection {intake.agencies.length === 1 ? 'agency' : 'agencies'} ·{' '}
+            {evidenceList.filter((ev) => ev.scanStatus === 'CLEAN').length} proof{' '}
+            {evidenceList.filter((ev) => ev.scanStatus === 'CLEAN').length === 1 ? 'file' : 'files'}
           </p>
           <fieldset>
             <legend>Attestation</legend>
@@ -476,7 +619,7 @@ export default function IntakeWizard() {
             ))}
           </fieldset>
           <div className="nav-row">
-            <button type="button" className="link" onClick={() => setStep('agencies')}>
+            <button type="button" className="link" onClick={() => setStep('evidence')}>
               ← Back
             </button>
             <button className="cta" type="submit" disabled={busy || !Object.values(attest).every(Boolean)}>

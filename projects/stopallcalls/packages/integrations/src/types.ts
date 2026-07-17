@@ -91,6 +91,26 @@ export interface EmailAdapter {
   }): Promise<{ messageId: string; status: 'QUEUED' | 'SENT' }>;
 }
 
+// Phase 2 (EVD-003): private object storage reached only through short-lived
+// signed URLs. The real adapter presigns against R2; the fake serves a local
+// dev sink with the same client contract (PUT bytes to `url`).
+export interface StorageAdapter {
+  createSignedUploadUrl(input: {
+    key: string;
+    mimeType: string;
+    maxSizeBytes: number;
+    expiresSeconds: number;
+  }): Promise<{ url: string; method: 'PUT' }>;
+  getObject(key: string): Promise<{ bytes: Uint8Array; mimeType: string } | null>;
+  deleteObject(key: string): Promise<void>;
+}
+
+// Phase 2 (EVD-005): quarantine scanning. Production runs this from a queue
+// consumer; the interface stays byte-in/verdict-out either way.
+export interface MalwareScanner {
+  scan(bytes: Uint8Array): Promise<'CLEAN' | 'INFECTED'>;
+}
+
 export interface TurnstileAdapter {
   // INT-008: server-side verification of the client challenge token. The real
   // adapter calls Cloudflare siteverify with TURNSTILE_SECRET_KEY (wrangler

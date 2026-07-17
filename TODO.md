@@ -54,7 +54,7 @@
 #### Deferred from Phase 0 scaffold PR
 - [x] Cloudflare dev provisioning (2026-07-16, account `0440a74c…` radical-disruptive): D1 `stopallcalls-dev` created + schema applied (29 tables), queues `stopallcalls-jobs-dev`/`-dlq-dev` created, Turnstile widget `stopallcalls-dev` created (sitekey/secret in `.devcontainer/.env`), real D1 id in `infra/wrangler.*.jsonc`, `wrangler` devDependency added
 - [x] R2 enabled + private buckets `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` created (location hint enam, 2026-07-16) — matches `infra/wrangler.*.jsonc` bindings
-- [ ] Wire the real Turnstile widget + siteverify adapter (replace `FakeTurnstileAdapter` + placeholder token in `IntakeWizard.tsx`); push `TURNSTILE_SECRET_KEY` via `wrangler secret put` — secrets push is human-gated
+- [x] Real Turnstile wired (2026-07-16): `CloudflareTurnstileAdapter` + client widget, env-switched (`apps/web/.env.local` locally; E2E pins the fake); `wrangler secret put TURNSTILE_SECRET_KEY` at deploy remains human-gated
 - [ ] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated)
 - [ ] Cloudflare Access (staff SSO/MFA) not yet configured — needed by Phase 2 evidence review; token lacks the Access scope (add when needed)
 - [ ] Factory CI does not run StopAllCalls checks (pnpm typecheck/lint/test) — `.github/workflows/` changes are human-gated
@@ -80,6 +80,13 @@
 - [x] StopAllCalls issues recreated in the radical-disruption workspace's **Cease** project as RAD-8..RAD-16 (2026-07-16; key stored as `RADICAL_LINEAR_API_KEY` in `.devcontainer/.env`); BUILD_PLAN links and `config/repos.yaml` updated
 - [ ] Archive or delete the interim `radical-disruption` team (RAD-1..9) inside asterion1971 — duplicates of the new-workspace issues; deleting a team archives its issues, so needs a human call
 - [ ] Factory Linear MCP still auths to asterion1971 — day-to-day StopAllCalls issue updates need the curl/`RADICAL_LINEAR_API_KEY` path (or re-point the MCP) until switched
+
+#### Phase 2 — Evidence (RAD-11, started 2026-07-16)
+- [x] Upload pipeline: validated request → signed-URL PUT → magic-byte/MIME + size verification → sha256 → quarantine → scan → CLEAN/INFECTED, chain-of-custody events, soft removal; wizard "Proof upload" step; 12 unit + 4 E2E tests
+- [ ] Real R2 storage adapter (presigned PUT/GET) replacing `FakeStorageAdapter` — buckets exist; adapter lands with the deploy wiring
+- [ ] Scan via `stopallcalls-jobs-dev` queue consumer instead of inline (interface `FinalizeDeps` unchanged); real malware scanning service selection pending
+- [ ] Staff evidence-review workspace + sufficiency rule (EVD-009/EVD-010) and credit-report handling (EVD-008) — needs Cloudflare Access (staff SSO) first
+- [ ] Attestation-only path (no uploads) flagged for lawyer review — SRS gate alternative, needs product-owner wording
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture

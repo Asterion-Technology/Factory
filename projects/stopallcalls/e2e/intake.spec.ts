@@ -42,6 +42,17 @@ async function addAgency(page: Page, name: string): Promise<void> {
   await expect(page.locator('.agency-list')).toContainText(name);
 }
 
+const PNG_FILE = {
+  name: 'proof-screenshot.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]),
+};
+
+async function goToEvidenceStep(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Continue to proof upload' }).click();
+  await expect(page.getByLabel('What is this file?')).toBeVisible();
+}
+
 test('landing page leads into the intake wizard (INT-001)', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Stop Collection Calls' })).toBeVisible();
@@ -68,7 +79,13 @@ test('full intake: verify, profile, multiple agencies, submit (INT-002..008)', a
     .click();
   await expect(page.locator('.agency-list li')).toHaveCount(1);
 
+  // Proof upload: a clean PNG is scanned and accepted (EVD-004/005).
+  await goToEvidenceStep(page);
+  await page.getByLabel('Choose a file (PDF, image, audio, or text)').setInputFiles(PNG_FILE);
+  await expect(page.getByRole('list', { name: 'Uploaded files' })).toContainText('proof-screenshot.png — accepted');
+
   await page.getByRole('button', { name: 'Continue to review' }).click();
+  await expect(page.getByText('1 proof file')).toBeVisible();
   for (const label of [
     'I confirm I am the consumer.',
     'I confirm I am being contacted by the listed collection agency or agencies.',
@@ -99,6 +116,7 @@ test('duplicate prevention: a submitted intake cannot be restarted (INT-007, INT
   await verifyEmail(page, email);
   await fillProfile(page);
   await addAgency(page, 'Once Collections (Fictitious)');
+  await goToEvidenceStep(page);
   await page.getByRole('button', { name: 'Continue to review' }).click();
   for (const checkbox of await page.getByRole('checkbox').all()) {
     await checkbox.check();
@@ -109,6 +127,27 @@ test('duplicate prevention: a submitted intake cannot be restarted (INT-007, INT
   // Returning to the wizard shows the submitted state — no second draft.
   await page.goto('/intake');
   await expect(page.getByRole('heading', { name: 'Intake received' })).toBeVisible();
+});
+
+test('malicious upload is blocked and discarded (EVD-005)', async ({ page }, testInfo) => {
+  const email = uniqueEmail(testInfo);
+  await page.goto('/intake');
+  await verifyEmail(page, email);
+  await fillProfile(page);
+  await addAgency(page, 'Scan Collections (Fictitious)');
+  await goToEvidenceStep(page);
+  await page.getByLabel('What is this file?').selectOption('CALL_LOG');
+  await page.getByLabel('Choose a file (PDF, image, audio, or text)').setInputFiles({
+    name: 'call-log.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('call log 2026-07-01 FAKE-MALWARE-SIGNATURE'),
+  });
+  // .error, not role=alert: Next's route announcer also carries role=alert.
+  await expect(page.locator('p.error')).toContainText('failed our safety scan');
+  await expect(page.getByRole('list', { name: 'Uploaded files' })).toContainText('blocked by safety scan');
+  // The blocked file never counts as proof.
+  await page.getByRole('button', { name: 'Continue to review' }).click();
+  await expect(page.getByText('0 proof files')).toBeVisible();
 });
 
 test('intake API rejects unverified sessions (INT-002 server-side)', async ({ page }) => {

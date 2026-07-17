@@ -7,6 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
+  // Dev-server route compilation on first hit can exceed the 5s default.
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
@@ -19,7 +21,9 @@ export default defineConfig({
     url: 'http://localhost:3211',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { SAC_E2E_EXPOSE_CODES: '1' },
+    // Blank Turnstile vars pin the fake adapter even if the developer has
+    // real keys in apps/web/.env.local (process env outranks .env files).
+    env: { SAC_E2E_EXPOSE_CODES: '1', NEXT_PUBLIC_TURNSTILE_SITE_KEY: '', TURNSTILE_SECRET_KEY: '' },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
