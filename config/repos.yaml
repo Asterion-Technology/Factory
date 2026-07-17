@@ -81,4 +81,4 @@ repos:
     role: app
     description: "Cease-and-desist intake, Clio matter creation, and lawyer-approved letter workflow (AST-167). Cloudflare-native Next.js monorepo."
     stack: [node, typescript, pnpm, nextjs, cloudflare, d1, r2]
-    linear_project: "Cease and Dissist"
+    linear_project: "Cease"  # workspace radical-disruption (not asterion1971)

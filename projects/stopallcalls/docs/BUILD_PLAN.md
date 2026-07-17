@@ -1,6 +1,6 @@
 # StopAllCalls — Software Build Plan
 
-Derived from [SRS.md](SRS.md) v1.0 (2026-07-10), attached to Linear issue [AST-167](https://linear.app/asterion1971/issue/AST-167/icd-cease-and-dissist). Tracked in the Linear project **Cease and Dissist** (team Asterion).
+Derived from [SRS.md](SRS.md) v1.0 (2026-07-10), attached to Linear issue [RAD-8](https://linear.app/radical-disruption/issue/RAD-8/icd-cease-and-dissist). Tracked in the Linear project **Cease** (workspace radical-disruption, team RAD).
 
 ## What we are building
 
@@ -12,14 +12,14 @@ The app owns the workflow; **Clio Manage is the system of record** for contacts,
 
 | Phase | Linear | Deliverables (summary) | Exit criterion |
 |---|---|---|---|
-| 0 — Foundation | [AST-168](https://linear.app/asterion1971/issue/AST-168) *(In Progress)* | Monorepo, wrangler env templates, domain state machines, D1 schema draft, fake providers, tests | Local setup succeeds from clean clone |
-| 1 — Intake MVP | [AST-169](https://linear.app/asterion1971/issue/AST-169) | Landing page, consumer auth/session, multi-step intake, multiple agencies, save/resume, submission snapshot | E2E intake tests pass mobile + desktop |
-| 2 — Evidence | [AST-170](https://linear.app/asterion1971/issue/AST-170) | Signed-URL uploads to private R2, quarantine + malware scan, evidence review, chain of custody | Malicious/invalid uploads blocked; clean evidence reviewable |
-| 3 — Conflict + Clio | [AST-171](https://linear.app/asterion1971/issue/AST-171) | Clio OAuth, conflict-search package, human disposition, contact mapping, one matter per agency | Retry tests prove no duplicate contacts/matters |
-| 4 — Identity/Retainer/Payment | [AST-172](https://linear.app/asterion1971/issue/AST-172) | ID-verification adapter, e-signature, pricing/order, hosted payment, EMT workflow | All gates enforced; webhook replay tests pass |
-| 5 — Letters | [AST-173](https://linear.app/asterion1971/issue/AST-173) | Template engine, PDF, lawyer review/diff, hash-bound approval, delivery + Clio upload | No send without exact valid approval; send exactly once |
-| 6 — Operations | [AST-174](https://linear.app/asterion1971/issue/AST-174) | Dashboards, follow-up, audit export, retention, observability, runbooks, security review | Production readiness checklist signed off |
-| 7 — Optional intelligence | [AST-175](https://linear.app/asterion1971/issue/AST-175) **(DEFERRED)** | Reviewed OCR extraction, constrained AI drafting | Accuracy benchmark, human confirmation, privacy/security approval |
+| 0 — Foundation | [RAD-9](https://linear.app/radical-disruption/issue/RAD-9) *(In Progress)* | Monorepo, wrangler env templates, domain state machines, D1 schema draft, fake providers, tests | Local setup succeeds from clean clone |
+| 1 — Intake MVP | [RAD-10](https://linear.app/radical-disruption/issue/RAD-10) | Landing page, consumer auth/session, multi-step intake, multiple agencies, save/resume, submission snapshot | E2E intake tests pass mobile + desktop |
+| 2 — Evidence | [RAD-11](https://linear.app/radical-disruption/issue/RAD-11) | Signed-URL uploads to private R2, quarantine + malware scan, evidence review, chain of custody | Malicious/invalid uploads blocked; clean evidence reviewable |
+| 3 — Conflict + Clio | [RAD-12](https://linear.app/radical-disruption/issue/RAD-12) | Clio OAuth, conflict-search package, human disposition, contact mapping, one matter per agency | Retry tests prove no duplicate contacts/matters |
+| 4 — Identity/Retainer/Payment | [RAD-13](https://linear.app/radical-disruption/issue/RAD-13) | ID-verification adapter, e-signature, pricing/order, hosted payment, EMT workflow | All gates enforced; webhook replay tests pass |
+| 5 — Letters | [RAD-14](https://linear.app/radical-disruption/issue/RAD-14) | Template engine, PDF, lawyer review/diff, hash-bound approval, delivery + Clio upload | No send without exact valid approval; send exactly once |
+| 6 — Operations | [RAD-15](https://linear.app/radical-disruption/issue/RAD-15) | Dashboards, follow-up, audit export, retention, observability, runbooks, security review | Production readiness checklist signed off |
+| 7 — Optional intelligence | [RAD-16](https://linear.app/radical-disruption/issue/RAD-16) **(DEFERRED)** | Reviewed OCR extraction, constrained AI drafting | Accuracy benchmark, human confirmation, privacy/security approval |
 
 Build strictly in phase order as vertical slices (SRS §15). Phase 7 is disabled by default — SRS §16 sets **AI provider: disabled in initial MVP**.
 

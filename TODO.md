@@ -74,9 +74,10 @@
 - [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
 - [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
 
-#### Linear workspace migration (in flight)
-- [ ] Finish migrating StopAllCalls issues to the `radical-disruption` Linear WORKSPACE (existing project: linear.app/radical-disruption/project/cease-7310f76584a9) — current MCP auth + `LINEAR_API_KEY` only reach asterion1971; needs a personal API key from the new workspace, then recreate RAD-1..9 there (cross-workspace moves unsupported by Linear API)
-- [ ] After the workspace migration: update Linear links in `projects/stopallcalls/docs/BUILD_PLAN.md`, `config/repos.yaml` `linear_project`, and archive the interim `radical-disruption` team inside asterion1971
+#### Linear workspace migration
+- [x] StopAllCalls issues recreated in the radical-disruption workspace's **Cease** project as RAD-8..RAD-16 (2026-07-16; key stored as `RADICAL_LINEAR_API_KEY` in `.devcontainer/.env`); BUILD_PLAN links and `config/repos.yaml` updated
+- [ ] Archive or delete the interim `radical-disruption` team (RAD-1..9) inside asterion1971 — duplicates of the new-workspace issues; deleting a team archives its issues, so needs a human call
+- [ ] Factory Linear MCP still auths to asterion1971 — day-to-day StopAllCalls issue updates need the curl/`RADICAL_LINEAR_API_KEY` path (or re-point the MCP) until switched
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
