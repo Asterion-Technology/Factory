@@ -5,6 +5,31 @@
 -- (DATA-002); searchable normalized values live in separate *_norm columns
 -- (DATA-003).
 
+-- INT-002: consumer email verification. Codes are stored as SHA-256 hashes;
+-- plaintext exists only in the outbound email.
+CREATE TABLE auth_challenges (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,                    -- normalized (lowercased/trimmed)
+  code_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_auth_challenges_email ON auth_challenges(email, created_at);
+
+-- INT-002: resumable consumer sessions. The verified email is the consumer
+-- key that intakes are owned by (cross-device resume, INT-008 dedupe).
+CREATE TABLE consumer_sessions (
+  token TEXT PRIMARY KEY,                 -- 256-bit random hex
+  email TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_consumer_sessions_email ON consumer_sessions(email);
+
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
   idp_subject TEXT NOT NULL UNIQUE,

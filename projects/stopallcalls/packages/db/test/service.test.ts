@@ -161,10 +161,10 @@ describe('submitIntake (INT-007, WF-001)', () => {
 });
 
 describe('toClientIntake', () => {
-  it('never leaks the session token', async () => {
+  it('never leaks the consumer key', async () => {
     const store = new InMemoryIntakeStore();
     const intake = await createOrResumeIntake(store, 'session-a');
-    expect(Object.keys(toClientIntake(intake))).not.toContain('sessionToken');
+    expect(Object.keys(toClientIntake(intake))).not.toContain('consumerKey');
   });
 });
 

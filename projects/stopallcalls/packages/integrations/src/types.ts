@@ -91,6 +91,13 @@ export interface EmailAdapter {
   }): Promise<{ messageId: string; status: 'QUEUED' | 'SENT' }>;
 }
 
+export interface TurnstileAdapter {
+  // INT-008: server-side verification of the client challenge token. The real
+  // adapter calls Cloudflare siteverify with TURNSTILE_SECRET_KEY (wrangler
+  // secret; never in code) once Cloudflare provisioning is approved.
+  verify(input: { token: string; remoteIp?: string }): Promise<boolean>;
+}
+
 export interface PdfAdapter {
   render(input: {
     templateId: string;

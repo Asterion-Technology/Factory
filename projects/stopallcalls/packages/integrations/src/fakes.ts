@@ -13,6 +13,7 @@ import type {
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
+  TurnstileAdapter,
 } from './types';
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -206,6 +207,13 @@ export class FakeEmailAdapter implements EmailAdapter {
       messageId: result.messageId,
     });
     return result;
+  }
+}
+
+export class FakeTurnstileAdapter implements TurnstileAdapter {
+  // 'turnstile-fail' lets tests exercise the rejection path deterministically.
+  async verify(input: { token: string; remoteIp?: string }): Promise<boolean> {
+    return input.token.length > 0 && input.token !== 'turnstile-fail';
   }
 }
 

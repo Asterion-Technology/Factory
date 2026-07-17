@@ -17,8 +17,11 @@ export interface SubmittedSnapshot {
 
 export interface IntakeRecord {
   id: string;
-  // Ownership handle for the consumer session cookie; never exposed in URLs.
-  sessionToken: string;
+  // INT-002: ownership handle — the verified consumer's normalized email,
+  // resolved server-side from the session cookie. Never exposed in URLs or
+  // client payloads; also what makes one intake per consumer hold across
+  // devices (INT-008 duplicate prevention).
+  consumerKey: string;
   jurisdiction: string;
   state: IntakeState;
   profile: Partial<ConsumerProfile> | null;
@@ -32,7 +35,7 @@ export interface IntakeRecord {
 export interface IntakeStore {
   insert(record: IntakeRecord): Promise<void>;
   getById(id: string): Promise<IntakeRecord | null>;
-  findActiveBySession(sessionToken: string): Promise<IntakeRecord | null>;
+  findActiveByConsumer(consumerKey: string): Promise<IntakeRecord | null>;
   /** Optimistic concurrency (API-002): returns false when the stored version differs. */
   update(record: IntakeRecord, expectedVersion: number): Promise<boolean>;
 }

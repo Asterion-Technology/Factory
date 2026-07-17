@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ZodError } from 'zod';
-import { ServiceError } from '@stopallcalls/db';
+import { ServiceError, getVerifiedSession, type ConsumerSession } from '@stopallcalls/db';
+import { getAuthStore } from '@/lib/store';
 
 export const SESSION_COOKIE = 'sac_session';
 
@@ -19,10 +20,25 @@ export function getSessionToken(req: NextRequest): string | null {
   return req.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
-export function requireSessionToken(req: NextRequest): string {
+/** INT-002: every intake route requires a verified consumer session. */
+export async function requireVerifiedSession(req: NextRequest): Promise<ConsumerSession> {
   const token = getSessionToken(req);
-  if (!token) throw new ServiceError(401, 'NO_SESSION', 'Start an intake to create a session.');
-  return token;
+  const session = token ? await getVerifiedSession(getAuthStore(), token) : null;
+  if (!session) {
+    throw new ServiceError(401, 'NO_SESSION', 'Verify your email to continue.');
+  }
+  return session;
+}
+
+// INT-008: per-IP limiter key. Cloudflare sets cf-connecting-ip in production;
+// x-forwarded-for's first hop covers local/proxy dev. The fallback groups
+// unattributable traffic into one bucket rather than bypassing limits.
+export function getRemoteKey(req: NextRequest): string {
+  return (
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    'unknown'
+  );
 }
 
 export function attachSessionCookie(res: NextResponse, token: string): NextResponse {

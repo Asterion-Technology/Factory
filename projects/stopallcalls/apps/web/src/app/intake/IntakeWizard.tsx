@@ -16,7 +16,12 @@ interface ClientIntake {
   version: number;
 }
 
-type Step = 'profile' | 'agencies' | 'review';
+type Step = 'verify' | 'profile' | 'agencies' | 'review';
+
+// INT-008: the widget token. Until Cloudflare provisioning supplies
+// NEXT_PUBLIC_TURNSTILE_SITE_KEY and the real widget renders, the fake
+// server-side adapter accepts this placeholder.
+const TURNSTILE_TOKEN_PLACEHOLDER = 'dev-turnstile-token';
 
 const EMPTY_PROFILE = {
   firstName: '',
@@ -54,7 +59,10 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export default function IntakeWizard() {
   const [intake, setIntake] = useState<ClientIntake | null>(null);
-  const [step, setStep] = useState<Step>('profile');
+  const [step, setStep] = useState<Step>('verify');
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [authForm, setAuthForm] = useState({ email: '', code: '' });
+  const [codeSent, setCodeSent] = useState(false);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [agencyForm, setAgencyForm] = useState(EMPTY_AGENCY);
   const [attest, setAttest] = useState({
@@ -67,27 +75,35 @@ export default function IntakeWizard() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Creates or resumes the verified consumer's intake and lands the wizard on
+  // the furthest step already completed (INT-002 save/resume).
+  const bootstrapIntake = useCallback(async (verifiedEmail: string) => {
+    const { intake: created } = await api<{ intake: ClientIntake }>('/api/intakes', { method: 'POST' });
+    setIntake(created);
+    const p = created.profile;
+    setProfileForm({
+      firstName: p?.firstName ?? '',
+      lastName: p?.lastName ?? '',
+      dateOfBirth: p?.dateOfBirth ?? '',
+      email: p?.email ?? verifiedEmail,
+      phone: p?.phone ?? '',
+      line1: p?.address?.line1 ?? '',
+      city: p?.address?.city ?? '',
+      region: p?.address?.region ?? '',
+      postalCode: p?.address?.postalCode ?? '',
+      country: p?.address?.country ?? 'CA',
+      preferredContactMethod: p?.preferredContactMethod ?? 'EMAIL',
+    });
+    setStep(p && created.agencies.length > 0 ? 'agencies' : 'profile');
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
-        const { intake: created } = await api<{ intake: ClientIntake }>('/api/intakes', { method: 'POST' });
-        setIntake(created);
-        const p = created.profile;
-        if (p) {
-          setProfileForm({
-            firstName: p.firstName ?? '',
-            lastName: p.lastName ?? '',
-            dateOfBirth: p.dateOfBirth ?? '',
-            email: p.email ?? '',
-            phone: p.phone ?? '',
-            line1: p.address?.line1 ?? '',
-            city: p.address?.city ?? '',
-            region: p.address?.region ?? '',
-            postalCode: p.address?.postalCode ?? '',
-            country: p.address?.country ?? 'CA',
-            preferredContactMethod: p.preferredContactMethod ?? 'EMAIL',
-          });
-          if (created.agencies.length > 0) setStep('agencies');
+        const { email } = await api<{ email: string | null }>('/api/auth/session');
+        if (email) {
+          setSessionEmail(email);
+          await bootstrapIntake(email);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Could not start your intake.');
@@ -95,7 +111,7 @@ export default function IntakeWizard() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [bootstrapIntake]);
 
   const run = useCallback(async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -108,6 +124,29 @@ export default function IntakeWizard() {
       setBusy(false);
     }
   }, []);
+
+  const sendCode = (e: FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      await api('/api/auth/start', {
+        method: 'POST',
+        body: JSON.stringify({ email: authForm.email, turnstileToken: TURNSTILE_TOKEN_PLACEHOLDER }),
+      });
+      setCodeSent(true);
+    });
+  };
+
+  const verifyCode = (e: FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      const { email } = await api<{ email: string }>('/api/auth/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email: authForm.email, code: authForm.code }),
+      });
+      setSessionEmail(email);
+      await bootstrapIntake(email);
+    });
+  };
 
   const saveProfile = (e: FormEvent) => {
     e.preventDefault();
@@ -202,18 +241,76 @@ export default function IntakeWizard() {
   return (
     <div>
       <ol className="steps" aria-label="Intake progress">
-        {(['profile', 'agencies', 'review'] as const).map((s, i) => (
+        {(['verify', 'profile', 'agencies', 'review'] as const).map((s, i) => (
           <li key={s} aria-current={step === s ? 'step' : undefined} className={step === s ? 'active' : ''}>
-            {i + 1}. {s === 'profile' ? 'Your information' : s === 'agencies' ? 'Collection agencies' : 'Review & submit'}
+            {i + 1}.{' '}
+            {s === 'verify'
+              ? 'Verify email'
+              : s === 'profile'
+                ? 'Your information'
+                : s === 'agencies'
+                  ? 'Collection agencies'
+                  : 'Review & submit'}
           </li>
         ))}
       </ol>
+
+      {sessionEmail && step !== 'verify' && <p>Verified as {sessionEmail}</p>}
 
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
+
+      {step === 'verify' &&
+        (codeSent ? (
+          <form onSubmit={verifyCode} aria-label="Enter verification code">
+            <p>
+              We sent a 6-digit code to <strong>{authForm.email}</strong>. Enter it below to continue.
+            </p>
+            <label>
+              Verification code
+              <input
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                value={authForm.code}
+                onChange={(e) => setAuthForm({ ...authForm, code: e.target.value })}
+              />
+            </label>
+            <div className="nav-row">
+              <button type="button" className="link" disabled={busy} onClick={() => setCodeSent(false)}>
+                ← Use a different email
+              </button>
+              <button className="cta" type="submit" disabled={busy || authForm.code.length !== 6}>
+                Verify and continue
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={sendCode} aria-label="Verify your email">
+            <p>
+              Enter your email address and we will send you a one-time code. This lets you save your
+              progress and return anytime.
+            </p>
+            <label>
+              Email
+              <input
+                required
+                type="email"
+                autoComplete="email"
+                value={authForm.email}
+                onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
+              />
+            </label>
+            <button className="cta" type="submit" disabled={busy || !authForm.email}>
+              Send code
+            </button>
+          </form>
+        ))}
 
       {step === 'profile' && (
         <form onSubmit={saveProfile} aria-label="Your information">

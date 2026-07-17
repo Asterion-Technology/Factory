@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
+    "dev:e2e": "next dev -p 3211",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"
@@ -12,6 +13,7 @@
     "@stopallcalls/contracts": "workspace:*",
     "@stopallcalls/db": "workspace:*",
     "@stopallcalls/domain": "workspace:*",
+    "@stopallcalls/integrations": "workspace:*",
     "next": "^15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

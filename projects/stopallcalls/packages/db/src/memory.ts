@@ -16,10 +16,10 @@ export class InMemoryIntakeStore implements IntakeStore {
     return record ? clone(record) : null;
   }
 
-  async findActiveBySession(sessionToken: string): Promise<IntakeRecord | null> {
+  async findActiveByConsumer(consumerKey: string): Promise<IntakeRecord | null> {
     for (const record of this.byId.values()) {
       if (
-        record.sessionToken === sessionToken &&
+        record.consumerKey === consumerKey &&
         record.state !== 'CLOSED' &&
         record.state !== 'CANCELLED'
       ) {

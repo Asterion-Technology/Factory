@@ -62,15 +62,21 @@
   - Location: `projects/stopallcalls/docs/`
   - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
 - [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
-
-#### Phase 1 remaining (AST-169 stays In Progress)
-- [ ] Consumer email/phone verification with magic link or one-time code (INT-002) — current session is an anonymous HttpOnly cookie; verification flow needs the email adapter wired into a `/api/auth` route
-  - Location: `projects/stopallcalls/apps/web/src/lib/api.ts` (session), `packages/integrations` (FakeEmailAdapter ready)
-- [ ] Turnstile + rate limiting on intake creation (INT-008) — blocked on Cloudflare provisioning; TODO marker in `apps/web/src/app/api/intakes/route.ts`
-- [ ] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion)
-- [ ] D1-backed IntakeStore — in-memory store (`packages/db/src/memory.ts`) is dev-only and loses drafts on server restart; swap behind the `IntakeStore` interface once D1 is provisioned
+ 
+#### Phase 1 remaining (RAD-3, formerly AST-169)
+- [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
+- [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
+- [x] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion) — 10 passing (`e2e/intake.spec.ts`)
+- [ ] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx`
+- [ ] Real email provider adapter for verification codes — `FakeEmailAdapter` is dev-only; wire Resend (or chosen provider) behind `EmailAdapter` at provisioning
+- [ ] Durable rate limiting — `SlidingWindowRateLimiter` is per-instance in-memory; move to Durable Object or D1 counters at provisioning
+- [ ] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned
 - [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
 - [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
+
+#### Linear workspace migration (in flight)
+- [ ] Finish migrating StopAllCalls issues to the `radical-disruption` Linear WORKSPACE (existing project: linear.app/radical-disruption/project/cease-7310f76584a9) — current MCP auth + `LINEAR_API_KEY` only reach asterion1971; needs a personal API key from the new workspace, then recreate RAD-1..9 there (cross-workspace moves unsupported by Linear API)
+- [ ] After the workspace migration: update Linear links in `projects/stopallcalls/docs/BUILD_PLAN.md`, `config/repos.yaml` `linear_project`, and archive the interim `radical-disruption` team inside asterion1971
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture

@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { removeAgency, toClientIntake } from '@stopallcalls/db';
-import { jsonOk, requireSessionToken, withErrorHandling } from '@/lib/api';
+import { jsonOk, requireVerifiedSession, withErrorHandling } from '@/lib/api';
 import { getIntakeStore } from '@/lib/store';
 
 const deleteSchema = z.object({ expectedVersion: z.number().int().positive() });
@@ -11,10 +11,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; agencyId: string }> },
 ) {
   return withErrorHandling(async () => {
-    const token = requireSessionToken(req);
+    const session = await requireVerifiedSession(req);
     const { id, agencyId } = await params;
     const body = deleteSchema.parse(await req.json());
-    const intake = await removeAgency(getIntakeStore(), token, id, agencyId, body.expectedVersion);
+    const intake = await removeAgency(getIntakeStore(), session.email, id, agencyId, body.expectedVersion);
     return jsonOk({ intake: toClientIntake(intake) });
   });
 }

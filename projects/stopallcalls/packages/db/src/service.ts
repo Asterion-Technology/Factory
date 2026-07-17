@@ -26,9 +26,9 @@ export class ServiceError extends Error {
 const now = (): string => new Date().toISOString();
 
 // IDOR guard: a missing intake and someone else's intake are indistinguishable.
-async function getOwned(store: IntakeStore, sessionToken: string, intakeId: string): Promise<IntakeRecord> {
+async function getOwned(store: IntakeStore, consumerKey: string, intakeId: string): Promise<IntakeRecord> {
   const record = await store.getById(intakeId);
-  if (!record || record.sessionToken !== sessionToken) {
+  if (!record || record.consumerKey !== consumerKey) {
     throw new ServiceError(404, 'NOT_FOUND', 'Intake not found.');
   }
   return record;
@@ -49,17 +49,17 @@ async function saveOrConflict(store: IntakeStore, record: IntakeRecord, expected
   return { ...record, version: expectedVersion + 1 };
 }
 
-/** POST /api/intakes — naturally idempotent: one active intake per session. */
+/** POST /api/intakes — naturally idempotent: one active intake per verified consumer (INT-008). */
 export async function createOrResumeIntake(
   store: IntakeStore,
-  sessionToken: string,
+  consumerKey: string,
   jurisdiction = 'CA',
 ): Promise<IntakeRecord> {
-  const existing = await store.findActiveBySession(sessionToken);
+  const existing = await store.findActiveByConsumer(consumerKey);
   if (existing) return existing;
   const record: IntakeRecord = {
     id: crypto.randomUUID(),
-    sessionToken,
+    consumerKey,
     jurisdiction,
     state: 'DRAFT',
     profile: null,
@@ -75,12 +75,12 @@ export async function createOrResumeIntake(
 
 export async function saveProfile(
   store: IntakeStore,
-  sessionToken: string,
+  consumerKey: string,
   intakeId: string,
   profilePatch: Partial<ConsumerProfile>,
   expectedVersion: number,
 ): Promise<IntakeRecord> {
-  const record = await getOwned(store, sessionToken, intakeId);
+  const record = await getOwned(store, consumerKey, intakeId);
   assertDraft(record);
   record.profile = { ...record.profile, ...profilePatch };
   return saveOrConflict(store, record, expectedVersion);
@@ -88,14 +88,14 @@ export async function saveProfile(
 
 export async function addAgency(
   store: IntakeStore,
-  sessionToken: string,
+  consumerKey: string,
   intakeId: string,
   entry: AgencyEntry,
   expectedVersion: number,
   maxAgencies: number = DEFAULT_MAX_AGENCIES,
 ): Promise<IntakeRecord> {
   const parsed = agencyEntrySchema.parse(entry);
-  const record = await getOwned(store, sessionToken, intakeId);
+  const record = await getOwned(store, consumerKey, intakeId);
   assertDraft(record);
   if (record.agencies.length >= maxAgencies) {
     throw new ServiceError(422, 'AGENCY_LIMIT', `A maximum of ${maxAgencies} collection agencies is supported per intake.`);
@@ -107,12 +107,12 @@ export async function addAgency(
 
 export async function removeAgency(
   store: IntakeStore,
-  sessionToken: string,
+  consumerKey: string,
   intakeId: string,
   agencyId: string,
   expectedVersion: number,
 ): Promise<IntakeRecord> {
-  const record = await getOwned(store, sessionToken, intakeId);
+  const record = await getOwned(store, consumerKey, intakeId);
   assertDraft(record);
   const next = record.agencies.filter((a) => a.id !== agencyId);
   if (next.length === record.agencies.length) {
@@ -128,13 +128,13 @@ export async function removeAgency(
  */
 export async function submitIntake(
   store: IntakeStore,
-  sessionToken: string,
+  consumerKey: string,
   intakeId: string,
   attestations: Attestations,
   expectedVersion: number,
 ): Promise<IntakeRecord> {
   const parsedAttestations = attestationsSchema.parse(attestations);
-  const record = await getOwned(store, sessionToken, intakeId);
+  const record = await getOwned(store, consumerKey, intakeId);
   assertDraft(record);
 
   const profileResult = consumerProfileSchema.safeParse(record.profile);
@@ -159,7 +159,7 @@ export async function submitIntake(
 }
 
 /** Strips ownership internals before anything crosses the HTTP boundary. */
-export function toClientIntake(record: IntakeRecord): Omit<IntakeRecord, 'sessionToken'> {
-  const { sessionToken: _sessionToken, ...client } = record;
+export function toClientIntake(record: IntakeRecord): Omit<IntakeRecord, 'consumerKey'> {
+  const { consumerKey: _consumerKey, ...client } = record;
   return client;
 }
