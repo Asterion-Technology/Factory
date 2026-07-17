@@ -48,6 +48,13 @@ export {
   recordConflictDisposition,
   runConflictCheck,
 } from './clio';
+export type { ClioConnectionRecord, ClioConnectionStore } from './clio-connection';
+export {
+  D1ClioConnectionStore,
+  InMemoryClioConnectionStore,
+  decryptSecret,
+  encryptSecret,
+} from './clio-connection';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,

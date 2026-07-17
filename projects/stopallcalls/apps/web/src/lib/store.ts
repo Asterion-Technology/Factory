@@ -1,13 +1,16 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import {
   D1AuthStore,
+  D1ClioConnectionStore,
   D1EvidenceStore,
   D1IntakeStore,
   InMemoryAuthStore,
+  InMemoryClioConnectionStore,
   InMemoryEvidenceStore,
   InMemoryIntakeStore,
   SlidingWindowRateLimiter,
   type AuthStore,
+  type ClioConnectionStore,
   type D1Like,
   type EvidenceStore,
   type IntakeStore,
@@ -53,6 +56,7 @@ const EMAIL_KEY = Symbol.for('stopallcalls.emailAdapter');
 const TURNSTILE_KEY = Symbol.for('stopallcalls.turnstileAdapter');
 const STORAGE_KEY = Symbol.for('stopallcalls.storageAdapter');
 const SCANNER_KEY = Symbol.for('stopallcalls.malwareScanner');
+const CLIO_CONNECTION_KEY = Symbol.for('stopallcalls.clioConnectionStore');
 const DEV_CODES_KEY = Symbol.for('stopallcalls.devCodes');
 
 type Singletons = {
@@ -64,6 +68,7 @@ type Singletons = {
   [TURNSTILE_KEY]?: TurnstileAdapter;
   [STORAGE_KEY]?: StorageAdapter;
   [SCANNER_KEY]?: MalwareScanner;
+  [CLIO_CONNECTION_KEY]?: ClioConnectionStore;
   [DEV_CODES_KEY]?: Map<string, string>;
 };
 
@@ -117,6 +122,12 @@ export function getStorageAdapter(): StorageAdapter {
 export function getMalwareScanner(): MalwareScanner {
   g[SCANNER_KEY] ??= new FakeMalwareScanner();
   return g[SCANNER_KEY];
+}
+
+export function getClioConnectionStore(): ClioConnectionStore {
+  const cf = cloudflareEnv();
+  g[CLIO_CONNECTION_KEY] ??= cf ? new D1ClioConnectionStore(cf.DB) : new InMemoryClioConnectionStore();
+  return g[CLIO_CONNECTION_KEY];
 }
 
 export function getEmailAdapter(): EmailAdapter {
