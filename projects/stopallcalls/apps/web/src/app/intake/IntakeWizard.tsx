@@ -80,6 +80,9 @@ export default function IntakeWizard() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   // Turnstile tokens are single-use: remount the widget after a failed send.
   const [widgetGeneration, setWidgetGeneration] = useState(0);
+  // Present only when the server runs in dev code-exposure mode (no real
+  // email provider yet); never set in production configurations.
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [agencyForm, setAgencyForm] = useState(EMPTY_AGENCY);
   const [evidenceList, setEvidenceList] = useState<ClientEvidence[]>([]);
@@ -149,10 +152,11 @@ export default function IntakeWizard() {
     if (!turnstileToken) return;
     void run(async () => {
       try {
-        await api('/api/auth/start', {
+        const { devCode: exposed } = await api<{ sent: boolean; devCode?: string }>('/api/auth/start', {
           method: 'POST',
           body: JSON.stringify({ email: authForm.email, turnstileToken }),
         });
+        setDevCode(exposed ?? null);
         setCodeSent(true);
       } catch (err) {
         setTurnstileToken(null);
@@ -341,6 +345,12 @@ export default function IntakeWizard() {
             <p>
               We sent a 6-digit code to <strong>{authForm.email}</strong>. Enter it below to continue.
             </p>
+            {devCode && (
+              <p>
+                <strong>Development environment:</strong> email delivery is not configured yet — your
+                code is <strong>{devCode}</strong>.
+              </p>
+            )}
             <label>
               Verification code
               <input

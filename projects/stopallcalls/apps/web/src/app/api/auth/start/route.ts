@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
     }
 
     const email = getEmailAdapter();
+    // Dev-exposure mode only: carry the code in the response. In-memory
+    // recording alone is isolate-local on Workers — the /api/dev/last-code
+    // lookup can land on a different isolate with an empty map.
+    let devCode: string | null = null;
     await startEmailVerification(getAuthStore(), body.email, {
       rateLimiter: getRateLimiter(),
       remoteKey,
@@ -30,8 +34,9 @@ export async function POST(req: NextRequest) {
           text: `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, ignore this email.`,
         });
         recordDevCode(to, code);
+        if (process.env.SAC_E2E_EXPOSE_CODES === '1') devCode = code;
       },
     });
-    return jsonOk({ sent: true }, 202);
+    return jsonOk(devCode ? { sent: true, devCode } : { sent: true }, 202);
   });
 }
