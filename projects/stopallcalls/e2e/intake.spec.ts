@@ -4,9 +4,11 @@ import { expect, test, type Page } from '@playwright/test';
 // agencies → review → submit. Fixture data is fictitious (SRS test-data rule).
 // Emails are unique per test+project so parallel runs never share an intake.
 
-let seq = 0;
+// UUID, not Date.now()+counter: parallel workers each get their own module
+// instance, so counters reset and timestamps can collide across workers —
+// a shared email means a shared intake and cross-test bleed.
 function uniqueEmail(testInfo: { project: { name: string } }): string {
-  return `e2e-${testInfo.project.name}-${Date.now()}-${++seq}@example.test`;
+  return `e2e-${testInfo.project.name}-${crypto.randomUUID()}@example.test`;
 }
 
 async function verifyEmail(page: Page, email: string): Promise<void> {

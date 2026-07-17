@@ -6,10 +6,13 @@
     "dev": "next dev",
     "dev:e2e": "next dev -p 3211",
     "build": "next build",
+    "build:cf": "opennextjs-cloudflare build",
+    "preview:cf": "opennextjs-cloudflare preview",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.1",
     "@stopallcalls/contracts": "workspace:*",
     "@stopallcalls/db": "workspace:*",
     "@stopallcalls/domain": "workspace:*",

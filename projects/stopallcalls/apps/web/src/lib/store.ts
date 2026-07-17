@@ -1,9 +1,14 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import {
+  D1AuthStore,
+  D1EvidenceStore,
+  D1IntakeStore,
   InMemoryAuthStore,
   InMemoryEvidenceStore,
   InMemoryIntakeStore,
   SlidingWindowRateLimiter,
   type AuthStore,
+  type D1Like,
   type EvidenceStore,
   type IntakeStore,
 } from '@stopallcalls/db';
@@ -13,15 +18,33 @@ import {
   FakeMalwareScanner,
   FakeStorageAdapter,
   FakeTurnstileAdapter,
+  R2StorageAdapter,
   type EmailAdapter,
   type MalwareScanner,
+  type R2BucketLike,
   type StorageAdapter,
   type TurnstileAdapter,
 } from '@stopallcalls/integrations';
 
-// Dev-only persistence: survive Next.js HMR by pinning singletons to
-// globalThis. D1-backed stores and real adapters replace these at Cloudflare
-// provisioning (DEV-003).
+// Backend selection (DEV-003): SAC_BACKEND=cloudflare (set in wrangler vars)
+// switches persistence to the D1/R2 bindings; anything else — local dev,
+// tests, E2E — keeps the deterministic in-memory fakes. Singletons pin to
+// globalThis to survive Next dev HMR; on Workers they are per-isolate.
+
+interface CloudflareEnv {
+  DB: D1Like;
+  EVIDENCE_BUCKET: R2BucketLike;
+  SAC_ACCOUNT_ID: string;
+  SAC_EVIDENCE_BUCKET_NAME: string;
+  // Wrangler secrets (R2 SigV4 signing pair for presigned uploads).
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
+}
+
+function cloudflareEnv(): CloudflareEnv | null {
+  if (process.env.SAC_BACKEND !== 'cloudflare') return null;
+  return getCloudflareContext().env as unknown as CloudflareEnv;
+}
 const INTAKE_KEY = Symbol.for('stopallcalls.intakeStore');
 const AUTH_KEY = Symbol.for('stopallcalls.authStore');
 const EVIDENCE_KEY = Symbol.for('stopallcalls.evidenceStore');
@@ -47,12 +70,14 @@ type Singletons = {
 const g = globalThis as Singletons;
 
 export function getIntakeStore(): IntakeStore {
-  g[INTAKE_KEY] ??= new InMemoryIntakeStore();
+  const cf = cloudflareEnv();
+  g[INTAKE_KEY] ??= cf ? new D1IntakeStore(cf.DB) : new InMemoryIntakeStore();
   return g[INTAKE_KEY];
 }
 
 export function getAuthStore(): AuthStore {
-  g[AUTH_KEY] ??= new InMemoryAuthStore();
+  const cf = cloudflareEnv();
+  g[AUTH_KEY] ??= cf ? new D1AuthStore(cf.DB) : new InMemoryAuthStore();
   return g[AUTH_KEY];
 }
 
@@ -62,13 +87,29 @@ export function getRateLimiter(): SlidingWindowRateLimiter {
 }
 
 export function getEvidenceStore(): EvidenceStore {
-  g[EVIDENCE_KEY] ??= new InMemoryEvidenceStore();
+  const cf = cloudflareEnv();
+  g[EVIDENCE_KEY] ??= cf ? new D1EvidenceStore(cf.DB) : new InMemoryEvidenceStore();
   return g[EVIDENCE_KEY];
 }
 
-// The R2-presigning adapter replaces the fake at deploy; the PUT /api/uploads
-// dev sink only operates when the fake is active.
+// R2 presigning when deployed; the PUT /api/uploads dev sink only operates
+// when the fake is active (it duck-types on the fake's putObject).
 export function getStorageAdapter(): StorageAdapter {
+  const cf = cloudflareEnv();
+  if (cf) {
+    if (!cf.R2_ACCESS_KEY_ID || !cf.R2_SECRET_ACCESS_KEY) {
+      // Fail closed with an actionable server-side message (never sent to clients).
+      throw new Error('R2 signing secrets missing: set R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY wrangler secrets');
+    }
+    g[STORAGE_KEY] ??= new R2StorageAdapter({
+      bucket: cf.EVIDENCE_BUCKET,
+      accountId: cf.SAC_ACCOUNT_ID,
+      bucketName: cf.SAC_EVIDENCE_BUCKET_NAME,
+      accessKeyId: cf.R2_ACCESS_KEY_ID,
+      secretAccessKey: cf.R2_SECRET_ACCESS_KEY,
+    });
+    return g[STORAGE_KEY];
+  }
   g[STORAGE_KEY] ??= new FakeStorageAdapter();
   return g[STORAGE_KEY];
 }
