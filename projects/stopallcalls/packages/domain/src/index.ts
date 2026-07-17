@@ -7,6 +7,12 @@ export {
   type TransitionRecord,
 } from './states';
 export {
+  buildConflictSearchPackage,
+  type ConflictSearchInput,
+  type ConflictSearchTerm,
+  type ConflictTermType,
+} from './conflict';
+export {
   GATES,
   HUMAN_ONLY_GATES,
   MATTER_CREATION_GATES,

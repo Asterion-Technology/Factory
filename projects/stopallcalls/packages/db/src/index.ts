@@ -28,6 +28,26 @@ export {
   requestEvidenceUpload,
   toClientEvidence,
 } from './evidence';
+export type {
+  ClioContactHit,
+  ClioMappingStore,
+  ConflictCheckRecord,
+  ConflictCheckStore,
+  ConflictDisposition,
+  ConflictSearchClio,
+  MatterRecord,
+  MatterStore,
+  ProvisioningClio,
+  ProvisioningStores,
+} from './clio';
+export {
+  InMemoryClioMappingStore,
+  InMemoryConflictCheckStore,
+  InMemoryMatterStore,
+  provisionClioForIntake,
+  recordConflictDisposition,
+  runConflictCheck,
+} from './clio';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,
