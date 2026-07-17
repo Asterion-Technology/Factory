@@ -52,9 +52,12 @@
 ### StopAllCalls (projects/stopallcalls — AST-167 / AST-168)
 
 #### Deferred from Phase 0 scaffold PR
-- [ ] Cloudflare resource provisioning (D1, R2 buckets, Queues, Access, Turnstile) — `infra/wrangler.*.jsonc` hold placeholder IDs
+- [x] Cloudflare dev provisioning (2026-07-16, account `0440a74c…` radical-disruptive): D1 `stopallcalls-dev` created + schema applied (29 tables), queues `stopallcalls-jobs-dev`/`-dlq-dev` created, Turnstile widget `stopallcalls-dev` created (sitekey/secret in `.devcontainer/.env`), real D1 id in `infra/wrangler.*.jsonc`, `wrangler` devDependency added
+- [ ] Enable R2 on the new Cloudflare account (dashboard action, needs billing method) then create `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` buckets
   - Location: `projects/stopallcalls/infra/`
-  - Suggested fix: Provision per environment (dev/preview/staging/prod, OPS-001) after human approval of the Cloudflare account/secrets; fill IDs and add `wrangler`/`@opennextjs/cloudflare` devDependencies at that point
+- [ ] Wire the real Turnstile widget + siteverify adapter (replace `FakeTurnstileAdapter` + placeholder token in `IntakeWizard.tsx`); push `TURNSTILE_SECRET_KEY` via `wrangler secret put` — secrets push is human-gated
+- [ ] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated)
+- [ ] Cloudflare Access (staff SSO/MFA) not yet configured — needed by Phase 2 evidence review; token lacks the Access scope (add when needed)
 - [ ] Factory CI does not run StopAllCalls checks (pnpm typecheck/lint/test) — `.github/workflows/` changes are human-gated
   - Location: `.github/workflows/ci.yml`
   - Suggested fix: Add a path-filtered job for `projects/stopallcalls/**` with human approval of the workflow change
