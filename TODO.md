@@ -53,8 +53,7 @@
 
 #### Deferred from Phase 0 scaffold PR
 - [x] Cloudflare dev provisioning (2026-07-16, account `0440a74c…` radical-disruptive): D1 `stopallcalls-dev` created + schema applied (29 tables), queues `stopallcalls-jobs-dev`/`-dlq-dev` created, Turnstile widget `stopallcalls-dev` created (sitekey/secret in `.devcontainer/.env`), real D1 id in `infra/wrangler.*.jsonc`, `wrangler` devDependency added
-- [ ] Enable R2 on the new Cloudflare account (dashboard action, needs billing method) then create `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` buckets
-  - Location: `projects/stopallcalls/infra/`
+- [x] R2 enabled + private buckets `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` created (location hint enam, 2026-07-16) — matches `infra/wrangler.*.jsonc` bindings
 - [ ] Wire the real Turnstile widget + siteverify adapter (replace `FakeTurnstileAdapter` + placeholder token in `IntakeWizard.tsx`); push `TURNSTILE_SECRET_KEY` via `wrangler secret put` — secrets push is human-gated
 - [ ] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated)
 - [ ] Cloudflare Access (staff SSO/MFA) not yet configured — needed by Phase 2 evidence review; token lacks the Access scope (add when needed)
