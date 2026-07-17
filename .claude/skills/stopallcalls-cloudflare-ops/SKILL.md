@@ -100,6 +100,15 @@ cd apps/web && pnpm build:cf
 
 ## Gotchas
 
+- **R2 buckets ship with NO CORS** — browser PUTs to presigned URLs fail at
+  preflight ("No 'Access-Control-Allow-Origin'") until you
+  `wrangler r2 bucket cors set <bucket> --file cors.json --force`. The file
+  must use the R2 API schema `{"rules":[{"allowed":{"origins":[...],
+  "methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}` —
+  the AWS-style `[{"AllowedOrigins":...}]` array is rejected. Every new
+  deployed origin (staging/prod hostnames) must be added to the rule. Verify
+  with an OPTIONS preflight curl (expect 204 + Access-Control headers).
+
 - A stray worker named `cease` exists on the account from dashboard onboarding
   — the real app worker is `stopallcalls-web-dev`.
 - `SAC_E2E_EXPOSE_CODES=1` in `apps/web/wrangler.jsonc` is DEV ONLY — must be
