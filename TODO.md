@@ -114,6 +114,15 @@
   - Suggested fix: Review with qualified counsel; record each decision as configuration, not code
 
 #### Factory Infrastructure (found during this build)
+- [x] Infisical self-hosted stood up (2026-07-18): `infisical/docker-compose.yml` (Postgres+Redis+server on :8085), instance bootstrapped via admin API, project `factory` (id in `.infisical.json`), 25 dev-tooling secrets migrated from machine env vars; `infisical run` injection verified. Admin creds + machine identity token in gitignored `infisical/.env.admin.local`
+- [x] All 28 dev-tooling secrets in Infisical (2026-07-18) incl. TWENTYFIRST_API_KEY / SLACK_BOT_TOKEN / SLACK_TEAM_ID; `scripts/code-with-secrets.ps1` launches VS Code with vault-injected env (verified — 28 vars reach child processes)
+- [ ] Cut over: use `scripts/code-with-secrets.ps1` as the VS Code launcher for a few sessions, then delete the `setx` machine env vars (incl. dead `MAGIC21_API_KEY`) so the vault is the single source of truth
+- [ ] Back up `infisical/.env` ENCRYPTION_KEY somewhere safe — losing it makes the Infisical DB unrecoverable
+- [ ] Finish the 21st.dev Magic swap (2026-07-18): the old `factory-magic21` MCP wrapper pointed at `api.magic21.ai` — a domain that has never existed — so it never worked; replaced with the official `@21st-dev/magic` package in `.mcp.json` and wrapper deleted
+  - Location: `.mcp.json` (`magic` server)
+  - Suggested fix: Get an API key from the 21st.dev Magic console, `setx TWENTYFIRST_API_KEY "<key>"`, reload VS Code; the stale `MAGIC21_API_KEY` env var can be deleted
+- [ ] factory-r2 MCP credentials stale ("SignatureDoesNotMatch") — rotate the R2 API token pair (`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`) in the Cloudflare dashboard for account c35ddd6d…
+- [ ] factory-litellm healthcheck fixed to `/health/liveliness` in `ai/docker-compose.yml` + `config/docker-compose.yml` (was curling the auth-gated `/health`, so the container always showed unhealthy) — needs `docker compose -f ai/docker-compose.yml up -d` to apply; also consider consolidating the duplicate litellm compose files
 - [ ] `config/repos.yaml` declares `base: "d:/REPO"` but Haven's `local_path` is an absolute `C:/Users/RDM71/REPO/Haven` — cross-drive inconsistency if tooling resolves paths against `base`
   - Location: `config/repos.yaml`
   - Suggested fix: Support absolute-path overrides explicitly in `scripts/resolve-repo.sh` docs, or normalize the manifest
