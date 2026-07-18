@@ -75,7 +75,7 @@
 - [ ] Merge Factory PR #14 ("Stops All Calls" branding docs) and PR #15 (Resend email adapter) — human approval gate
 - [ ] Resume RAD-15 staff portal (UI-002..006) on `feature/RAD-15-staff-portal` — include the RAD-17 market-switch admin screen (markets enable/disable, audited)
 - [ ] Worker custom domains on stopsallcalls.com (needs zone token): app/staging hostnames → workers, then update Turnstile widget domains, Cloudflare Access apps, R2 CORS origins, Clio OAuth redirect URIs
-- [ ] Verify zone-scoped Cloudflare token (read-only zone check) once owner adds CLOUDFLARE_ZONE_API_TOKEN
+- [x] Zone-scoped Cloudflare token verified 2026-07-18 (`CLOUDFLARE_ZONE_API_TOKEN` in `.devcontainer/.env`): status active, sees only stopsallcalls.com (zone id fc7adbf1…) — unblocks worker custom domains / DNS / SSL work
 - [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
 - [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
 - [ ] Linear hygiene: rename/archive the stale interim team 'radical-disruption' (RAD-1..9, project 'Cease and Dissist') in the asterion1971 workspace — owner approval before archiving
