@@ -73,3 +73,12 @@ repos:
     description: "Website for community coupons and projects."
     stack: [node]
     linear_project: "Haven"
+
+  - id: stopallcalls
+    name: "StopAllCalls"
+    local_path: Factory/projects/stopallcalls
+    remote: "https://github.com/Asterion-Technology/StopAllCalls.git"
+    role: app
+    description: "Cease-and-desist intake, Clio matter creation, and lawyer-approved letter workflow (AST-167). Cloudflare-native Next.js monorepo."
+    stack: [node, typescript, pnpm, nextjs, cloudflare, d1, r2]
+    linear_project: "Cease and Dissist"
