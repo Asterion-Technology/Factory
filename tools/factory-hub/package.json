@@ -1,0 +1,11 @@
+{
+  "name": "factory-hub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Factory status/spend/dashboard service (zero runtime dependencies)",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}
