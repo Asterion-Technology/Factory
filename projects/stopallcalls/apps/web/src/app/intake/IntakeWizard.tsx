@@ -338,6 +338,9 @@ export default function IntakeWizard() {
           information and contact you at the email address you provided. Reference:{' '}
           <strong>{intake.id.slice(0, 8).toUpperCase()}</strong>
         </p>
+        <a className="cta" href="/status">
+          Track your case status
+        </a>
       </section>
     );
   }

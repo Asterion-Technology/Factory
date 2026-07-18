@@ -132,7 +132,9 @@
 
 #### Phase 6 — Operations (RAD-15, started 2026-07-18)
 - [x] Append-only tamper-evident audit trail (DATA-004): hash-chained events (each hash covers content + previous hash), no update/delete path by construction, chain verification detecting edit/deletion/reordering/forgery; D1AuditStore on the baseline audit_events table (no migration needed); wired into conflict disposition, EMT confirm, identity override, letter decision, letter send; staff GET /api/staff/audit with live chain verdict
-- [ ] Consumer dashboard + staff portal UI (UI-001..006) — API-first so far; screens unbuilt
+- [x] Consumer case-status dashboard (UI-001): /status tracker — 7 steps with complete/active/pending/attention states, live actions (identity session, retainer sign + confirm, card checkout, e-Transfer instructions), consumer-safe aggregate endpoint (conflict data never exposed, WF-006); E2E-covered mobile+desktop
+- [ ] Staff portal screens (UI-002..006, master client view) — staff APIs exist; screens unbuilt (need Cloudflare Access first for real auth)
+- [ ] Magic (21st.dev) MCP returns malformed payloads on both builder and inspiration tools ([object Object] / invalid MCP content) — upstream wrapper bug; component was hand-built this time. Re-test after their next release
 - [ ] Ops dashboards (queue depth, dead letters, provider latency, Clio sync lag, payment anomalies, delivery failures — OPS-004), PII-free alerts + runbooks (OPS-005/006), scheduled reconciliation (OPS-007)
 - [ ] Audit export + retention/deletion workflows (SEC-011, SEC-014/015)
 - [ ] Follow-up scheduling + optional Phase 2 invitation (DLV-007/008) — needs the jobs queue consumer (still a stub)
