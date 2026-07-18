@@ -3,6 +3,12 @@
 ## [Unreleased] — 2026-07-18
 
 ### Changed
+- Merge pull request #20 from Asterion-Technology/overhaul/factory-hub
+
+
+## [Unreleased] — 2026-07-18
+
+### Changed
 - Merge pull request #19 from Asterion-Technology/feature/RAD-15-portal-actions
 
 
