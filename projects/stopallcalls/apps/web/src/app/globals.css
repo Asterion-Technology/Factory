@@ -280,3 +280,22 @@ legend {
   background: #fff;
   font-size: 0.9rem;
 }
+
+/* Staff portal (RAD-15 UI-002..006) */
+.staff-shell { max-width: 1080px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.staff-header { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; padding-bottom: 1rem; border-bottom: 1px solid #d8d4cc; margin-bottom: 1.5rem; }
+.staff-identity { margin-left: auto; font-size: 0.85rem; color: #5c5850; }
+.staff-tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: #ece8e0; font-size: 0.75rem; text-transform: capitalize; }
+.staff-filters { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.75rem 0; }
+.staff-filters .cta { padding: 0.25rem 0.7rem; font-size: 0.8rem; }
+.staff-filter-active { outline: 2px solid #2e2a24; }
+.staff-search { width: 100%; max-width: 26rem; padding: 0.5rem 0.75rem; border: 1px solid #c9c4ba; border-radius: 6px; margin-bottom: 1rem; }
+.staff-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.staff-table th { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid #d8d4cc; }
+.staff-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #e8e4dc; vertical-align: top; }
+.staff-sub { font-size: 0.8rem; color: #6c6860; }
+.staff-dl dt { font-weight: 600; margin-top: 0.5rem; }
+.staff-dl dd { margin: 0; }
+.staff-metric { display: inline-block; margin: 0 1.5rem 0.75rem 0; }
+.staff-letter { white-space: pre-wrap; background: #faf8f4; border: 1px solid #d8d4cc; border-radius: 8px; padding: 1rem; font-size: 0.85rem; max-height: 28rem; overflow-y: auto; }
+.staff-prior { opacity: 0.65; }

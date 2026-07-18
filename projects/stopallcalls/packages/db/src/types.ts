@@ -38,4 +38,6 @@ export interface IntakeStore {
   findActiveByConsumer(consumerKey: string): Promise<IntakeRecord | null>;
   /** Optimistic concurrency (API-002): returns false when the stored version differs. */
   update(record: IntakeRecord, expectedVersion: number): Promise<boolean>;
+  /** Staff queue (UI-002): newest-activity-first, optional state filter. */
+  listForStaff(filter?: { state?: IntakeState; limit?: number }): Promise<IntakeRecord[]>;
 }

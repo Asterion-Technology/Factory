@@ -20,6 +20,8 @@ export type { RealClioConfig } from './clio';
 export { RealClioAdapter } from './clio';
 export type { R2BucketLike, R2StorageConfig } from './r2';
 export { R2StorageAdapter } from './r2';
+export type { ResendEmailConfig } from './resend-email';
+export { ResendEmailAdapter } from './resend-email';
 export {
   FAKE_MALWARE_MARKER,
   FakeClioAdapter,

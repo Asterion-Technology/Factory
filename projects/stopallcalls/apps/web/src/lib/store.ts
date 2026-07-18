@@ -70,6 +70,7 @@ import {
 import {
   CloudflareTurnstileAdapter,
   FakeEmailAdapter,
+  ResendEmailAdapter,
   FakeMalwareScanner,
   FakeStorageAdapter,
   FakeTurnstileAdapter,
@@ -334,8 +335,11 @@ export function getSignatureAdapter(): FakeSignatureAdapter {
   return g[SIGNATURE_ADAPTER_KEY];
 }
 
+// RAD-18: real Resend adapter when the secret is configured; fake otherwise
+// (DEV-003 default, and what E2E runs against). Mirrors the Turnstile rule.
 export function getEmailAdapter(): EmailAdapter {
-  g[EMAIL_KEY] ??= new FakeEmailAdapter();
+  const apiKey = process.env.RESEND_API_KEY;
+  g[EMAIL_KEY] ??= apiKey ? new ResendEmailAdapter({ apiKey }) : new FakeEmailAdapter();
   return g[EMAIL_KEY];
 }
 

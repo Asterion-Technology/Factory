@@ -35,4 +35,13 @@ export class InMemoryIntakeStore implements IntakeStore {
     this.byId.set(record.id, clone({ ...record, version: expectedVersion + 1 }));
     return true;
   }
+
+  async listForStaff(filter?: { state?: IntakeRecord['state']; limit?: number }): Promise<IntakeRecord[]> {
+    const limit = filter?.limit ?? 100;
+    return [...this.byId.values()]
+      .filter((r) => !filter?.state || r.state === filter.state)
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+      .slice(0, limit)
+      .map(clone);
+  }
 }

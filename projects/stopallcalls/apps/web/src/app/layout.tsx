@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'StopAllCalls — Stop Collection Calls',
+  title: 'Stops All Calls — Stop Collection Calls',
   description:
     'We prepare and send a lawyer-issued cease-and-desist communication letter to collection agencies contacting you.',
 };

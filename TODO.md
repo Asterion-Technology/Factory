@@ -82,12 +82,29 @@
   - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
 - [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
  
+#### RAD-17 market pivot — deferred owner decisions + ops queue (2026-07-18)
+- [ ] Tax treatment for CA launch: per-province GST/HST/QST vs flat vs Stripe Tax — needs accountant (RAD-17 Q1)
+- [ ] Flat-fee trust-accounting structure under LSO rules (RAD-17 Q2)
+- [ ] Quebec at launch vs fast-follow after FR content approval (RAD-17 Q3)
+- [x] Clio instance confirmed (RAD-17 Q6, 2026-07-18): firm IS on the US instance — app 36464 stays; add stopsallcalls.com redirect URIs to it at domain cutover; production should connect via a restricted Clio user (no OAuth scopes exist — token carries the user's permissions)
+- [ ] Q6b DATA RESIDENCY (reopened 2026-07-18, owner+Eric with Clio support): decide Clio region posture (stay US / migrate to ca.app.clio.com / separate CA account) TOGETHER with Cloudflare data location (D1/R2 currently ENAM) so the privacy policy tells one coherent story — PIPEDA/LSO allow cross-border with disclosure; Quebec Law 25 stricter; part of the RAD-17 privacy workstream, not a build blocker
+- [x] RAD-18 domain + account: dedicated Resend account for stopsallcalls, `stopsallcalls.com` VERIFIED (us-east-1, DNS already in place), live send confirmed 2026-07-18 — `SAC_RESEND_API_KEY` (full-access) staged in `.devcontainer/.env`, Haven's `RESEND_API_KEY` untouched
+- [ ] RAD-18 remaining: mint a SEND-ONLY key from the dedicated account for the worker runtime (never ship the full-access key), `wrangler secret put RESEND_API_KEY` + `SAC_MAIL_FROM` var when staging/prod envs exist (human-gated; dev stays on the fake adapter), then retire `SAC_E2E_EXPOSE_CODES` from deployed config
+- [ ] Merge Factory PR #14 ("Stops All Calls" branding docs) and PR #15 (Resend email adapter) — human approval gate
+- [ ] Resume RAD-15 staff portal (UI-002..006) on `feature/RAD-15-staff-portal` — include the RAD-17 market-switch admin screen (markets enable/disable, audited)
+- [ ] Worker custom domains on stopsallcalls.com (needs zone token): app/staging hostnames → workers, then update Turnstile widget domains, Cloudflare Access apps, R2 CORS origins, Clio OAuth redirect URIs
+- [x] Zone-scoped Cloudflare token verified 2026-07-18 (`CLOUDFLARE_ZONE_API_TOKEN` in `.devcontainer/.env`): status active, sees only stopsallcalls.com (zone id fc7adbf1…) — unblocks worker custom domains / DNS / SSL work
+- [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
+- [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
+- [ ] Linear hygiene: rename/archive the stale interim team 'radical-disruption' (RAD-1..9, project 'Cease and Dissist') in the asterion1971 workspace — owner approval before archiving
+- [ ] AST-215: Factory main CI npm-ci workspace-glob failure — still red on one workflow per merge
+
 #### Phase 1 remaining (RAD-3, formerly AST-169)
 - [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
 - [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
 - [x] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion) — 10 passing (`e2e/intake.spec.ts`)
 - [ ] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx`
-- [ ] Real email provider adapter for verification codes — `FakeEmailAdapter` is dev-only; wire Resend (or chosen provider) behind `EmailAdapter` at provisioning
+- [x] Real email provider adapter for verification codes — ResendEmailAdapter landed (RAD-18, 2026-07-18), env-switched on `RESEND_API_KEY`; sending-domain DNS + secret put remain human-gated (see RAD-18 section below)
 - [ ] Durable rate limiting — `SlidingWindowRateLimiter` is per-instance in-memory; move to Durable Object or D1 counters at provisioning
 - [ ] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned
 - [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
@@ -162,6 +179,13 @@
 - [ ] Audit-chain hardening (from security review): anchor the latest eventHash + count outside D1 write scope (WORM R2 object or observability line) and have verifyAuditChain compare against the anchor; optionally HMAC the chain. Until then the verdict detects app-layer tampering only
 - [ ] appendAuditEvent is non-atomic (getLast then append): concurrent staff actions can fork the chain, causing a FALSE tamper alarm (availability nuisance, not a bypass) — serialize appends (Durable Object or retry-on-fork)
 - [ ] Full security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
+
+#### Cloudflare Access rollout (RAD-15, ADR 0002, started 2026-07-18)
+- [x] ADR 0002 + app-side verifier: lib/staff.ts requireStaff() verifies the Access JWT (RS256 vs team JWKS, aud/iss/exp), maps identity to role (SAC_STAFF_ROLES or IdP group claim), dev fallback on ALLOW_CLIO_CONNECT; wired into the read-only staff routes (ops, audit, audit/export)
+- [ ] HUMAN (dashboard): add a custom domain to stopallcalls-web-dev (Access cannot protect *.workers.dev), create the Access self-hosted app (note the AUD tag), add an IdP with MFA, write allow policies; then set CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD (+ optional SAC_STAFF_ROLES) as wrangler vars and remove ALLOW_CLIO_CONNECT from the deployed env
+- [ ] Migrate the WRITE staff routes (conflict disposition, EMT confirm, identity override, letter decision/send) to take the actor from requireStaff() instead of the request body (closes the spoofable-actor gap); relax the now-redundant actor fields in the contracts schemas
+- [ ] Live-verify requireStaff against a real Access JWT once configured (JWKS fetch + signature path untested against live Access)
+- [ ] CHECK: Cloudflare build #3164b081 failed (2026-07-18) — investigate in the dashboard (Workers Builds / connected-repo build); likely unrelated to the local build:cf which passes
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture

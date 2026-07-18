@@ -3,6 +3,8 @@
 **Secure Cloudflare-Native Cease-and-Desist Intake, Matter Creation, and Letter Workflow**
 
 > Converted to Markdown from `SRS-original.docx` (attached to Linear issue AST-167). Content is unchanged; formatting restored for repo use.
+>
+> **Branding note (RAD-17, 2026-07-18):** the product display name is now **"Stops All Calls"** (domain `stopsallcalls.com`). "StopAllCalls" throughout this document refers to the same product; the source spec text is preserved verbatim. Market pivot (Canada-first, bilingual EN/FR) is tracked in RAD-17 and supersedes US-specific assumptions herein.
 
 ## Document Control
 

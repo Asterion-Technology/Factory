@@ -1,4 +1,6 @@
-# StopAllCalls
+# Stops All Calls
+
+> **Naming (RAD-17, 2026-07-18):** product display name is **"Stops All Calls"**, matching the domain **stopsallcalls.com**. Technical identifiers (`stopallcalls` package scope, worker names, directory, repo `radical-disruptive/cease`) intentionally keep the old spelling — do not rename them.
 
 Consumer-facing legal-service application: a lawyer-issued **cease-and-desist letter funnel** for people being contacted by debt collectors. Intake → evidence → Clio conflict check → identity verification → limited-scope retainer → payment → one Clio matter per collection agency → lawyer-approved letter → delivery + follow-up.
 

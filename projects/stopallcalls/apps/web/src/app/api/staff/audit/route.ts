@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { verifyAuditChain } from '@stopallcalls/db';
-import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
-import { clioConnectEnabled } from '@/lib/clio';
+import { jsonOk, withErrorHandling } from '@/lib/api';
+import { requireStaff } from '@/lib/staff';
 import { getAuditStore } from '@/lib/store';
 
 // DATA-004 / SEC-014: staff view of the audit trail with live chain
@@ -9,7 +9,7 @@ import { getAuditStore } from '@/lib/store';
 // visible, while the response returns only the most recent events.
 export async function GET(req: NextRequest) {
   return withErrorHandling(async () => {
-    if (!clioConnectEnabled()) return jsonError(404, 'NOT_FOUND', 'Not found.');
+    await requireStaff(req);
     const all = await getAuditStore().list();
     const verdict = await verifyAuditChain(all);
     const limitParam = Number(req.nextUrl.searchParams.get('limit') ?? '50');
