@@ -5,8 +5,10 @@ import { clioConnectEnabled } from '@/lib/clio';
 import { getAuditStore } from '@/lib/store';
 
 // SEC-011/SEC-014: audit-trail export as NDJSON. Line 1 is an export manifest
-// with the live chain verdict, so a tampered trail is visible in the export
-// itself; every following line is one event in chain order.
+// with the live chain verdict — this detects app-layer tampering (edits,
+// deletions, reordering without rehashing); it cannot detect a rewrite or
+// tail-truncation by an actor with direct DB write access until external
+// head anchoring lands (TODO.md). Every following line is one event in order.
 export async function GET() {
   return withErrorHandling(async () => {
     if (!clioConnectEnabled()) return jsonError(404, 'NOT_FOUND', 'Not found.');

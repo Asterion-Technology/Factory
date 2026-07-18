@@ -1,10 +1,14 @@
 import { ServiceError } from './service';
 
 // Phase 6 (DATA-004 / ARC-010): append-only, tamper-evident audit trail.
-// Every event's hash covers its content AND the previous event's hash, so any
-// mutation, deletion, or reordering breaks the chain from that point on.
-// The store interface has no update or delete — append-only by construction.
-// Detail payloads must already be PII-free; identifiers only (SEC rules).
+// Every event's hash covers its content AND the previous event's hash, so
+// app-layer mutation, deletion, or reordering breaks the chain from that
+// point on. The store interface has no update or delete — append-only by
+// construction. KNOWN LIMIT (security review 2026-07-18): the chain is
+// self-contained and unkeyed, so an actor with direct DB write access can
+// truncate the tail or rewrite-and-rehash undetected; external head
+// anchoring is the planned hardening (see TODO.md). Detail payloads must
+// already be PII-free; identifiers only (SEC rules).
 
 export type AuditActorType = 'STAFF' | 'CONSUMER' | 'SYSTEM';
 

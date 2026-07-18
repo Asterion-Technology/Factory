@@ -141,7 +141,10 @@
 - [ ] Retention/deletion workflows (SEC-015) — retention periods are an SRS §16 counsel decision; implement once policy is set
 - [x] Jobs worker is real (2026-07-18): typed queue consumer (zod-validated envelope, malformed→ack, errors→retry→DLQ) + daily cron running the idempotent follow-up sweep (DELIVERED + 14d + no response → FOLLOW_UP_DUE + task, DLV-007/OPS-007). Deploy of the jobs worker is human-gated and still pending
 - [ ] Move evidence scanning + post-submit conflict checks onto the queue (message shapes already defined in contracts/jobs.ts); Phase 2 invitation flow (DLV-008) still open
-- [ ] Security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
+- [x] Security review pass over Phase 6 branch (2026-07-18): adversarial two-stage review (finder + false-positive filter) — no reportable vulnerabilities; SQL parameterization, IDOR guards, WF-006/IDV-002 leakage rules, XSS, PII hygiene, queue surface all verified clean. Full-app TST-005 matrix + WCAG 2.2 AA (TST-006) still due at production-readiness signoff
+- [ ] Audit-chain hardening (from security review): anchor the latest eventHash + count outside D1 write scope (WORM R2 object or observability line) and have verifyAuditChain compare against the anchor; optionally HMAC the chain. Until then the verdict detects app-layer tampering only
+- [ ] appendAuditEvent is non-atomic (getLast then append): concurrent staff actions can fork the chain, causing a FALSE tamper alarm (availability nuisance, not a bypass) — serialize appends (Durable Object or retry-on-fork)
+- [ ] Full security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
