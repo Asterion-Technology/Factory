@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "workspaces": [
-    "projects/*",
+    "projects/hello-world",
+    "projects/notary-control-hub",
     "mcp/servers/*",
     "knowledge"
   ],
