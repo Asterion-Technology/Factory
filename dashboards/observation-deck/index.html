@@ -304,11 +304,14 @@
     <div class="agent-legend" id="workforceLegend"></div>
   </div>
 
-  <!-- Cost This Week -->
-  <div class="card">
-    <div class="card-title">Cost This Week</div>
-    <div id="costMetrics">
-      <div class="no-data">Connect Langfuse to see cost data</div>
+  <!-- LLM Spend (all providers, from factory-hub) -->
+  <div class="card wide">
+    <div class="card-title">
+      LLM Spend
+      <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
+    </div>
+    <div id="spendMetrics">
+      <div class="no-data">Waiting for factory-hub…</div>
     </div>
   </div>
 
@@ -347,20 +350,23 @@
     </div>
     <div id="liveActivity">
       <div class="no-data">
-        Waiting for tool events — run <code>bash scripts/serve-dashboard.sh</code> and wire the PostToolUse hook (see README).
+        Waiting for tool events — run <code>start Factory</code> and wire the PostToolUse hook (see README).
       </div>
     </div>
   </div>
 
-  <!-- MCP Server Status (with live call counts) -->
-  <div class="card wide">
+  <!-- MCP Server Status: local (probed) vs claude.ai-hosted -->
+  <div class="card full">
     <div class="card-title">
-      MCP Server Status
+      MCP Servers
       <span class="live-pill"><span class="live-pill-dot"></span>LIVE</span>
+      <span id="mcpCounts" class="sub-label" style="text-transform:none;letter-spacing:0"></span>
     </div>
     <div id="mcpStatus">
-      <div class="no-data">Loading MCP config…</div>
+      <div class="no-data">Loading MCP status…</div>
     </div>
+    <div class="card-title" style="margin-top:14px">Hosted in Claude (claude.ai connectors)</div>
+    <div id="mcpHosted"></div>
   </div>
 
   <!-- RTK Compression (with live events) -->
@@ -422,61 +428,45 @@
     return `${Math.floor(s/3600)}h`;
   }
 
+  // Local calendar date (was UTC — made "today" roll over at 7-8 PM local)
+  function localDateOf(d) {
+    d = d instanceof Date ? d : new Date(d);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    return localDateOf(new Date());
   }
 
   function serverColor(name) {
     return SERVER_COLORS[name] || '#7d8590';
   }
 
-  // ── Data loading ─────────────────────────────────────────────────────────────
-  async function loadMetrics() {
+  // ── Data loading (factory-hub APIs) ──────────────────────────────────────────
+  async function loadJson(url) {
     try {
-      const res = await fetch('./metrics.json');
-      if (!res.ok) throw new Error('not found');
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
       return await res.json();
     } catch {
       return null;
     }
   }
 
+  const loadMetrics = () => loadJson('/api/metrics');
+  const loadSpend   = () => loadJson('/api/spend');
+  const loadStatus  = () => loadJson('/api/status');
+
+  // /api/events → { today: {total, byServer, byOrigin}, days, feed: [...] }
   async function loadEvents() {
-    try {
-      const res = await fetch('./events.jsonl');
-      if (!res.ok) {
-        serverConnected = false;
-        return null;
-      }
-      serverConnected = true;
-      const text = await res.text();
-      if (!text.trim()) return [];
-      return text.trim().split('\n')
-        .map(line => { try { return JSON.parse(line); } catch { return null; } })
-        .filter(Boolean);
-    } catch {
-      serverConnected = false;
-      return null;
-    }
+    const data = await loadJson('/api/events');
+    serverConnected = data !== null;
+    return data;
   }
 
   // ── Derived data from events ─────────────────────────────────────────────────
-  function todaysToolEvents(events) {
-    const today = todayStr();
-    return events.filter(e => e.type === 'tool' && e.ts && e.ts.startsWith(today));
-  }
-
   function todaysRtkEvents(events) {
     const today = todayStr();
-    return events.filter(e => e.type === 'rtk' && e.ts && e.ts.startsWith(today));
-  }
-
-  function mcpCallCounts(toolEvents) {
-    const counts = {};
-    for (const e of toolEvents) {
-      counts[e.server] = (counts[e.server] || 0) + 1;
-    }
-    return counts;
+    return events.filter(e => e.type === 'rtk' && e.ts && localDateOf(e.ts) === today);
   }
 
   // ── Renderers: metrics.json ──────────────────────────────────────────────────
@@ -523,35 +513,42 @@
     ).join('');
   }
 
-  function renderCost(data) {
-    const el = document.getElementById('costMetrics');
-    const connected = data && data.langfuse_connected;
-    if (!connected) {
-      el.innerHTML = `
-        <div class="no-data">Add Langfuse keys to Factory <code>.env</code> and run <code>scripts/metrics-collector.sh</code></div>
-        <div style="margin-top:12px">
-          <div class="metric-row"><span class="metric-label">Langfuse</span><span class="badge skip">Not connected</span></div>
-          <div class="metric-row"><span class="metric-label">Cost tracking</span><span class="badge skip">Pending setup</span></div>
-        </div>`;
+  function fmtTokens(n) {
+    n = n || 0;
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+    return String(n);
+  }
+
+  // Real per-provider spend from factory-hub transcript parsing.
+  // Claude runs on a Max subscription — dollars are API-equivalent value, not a bill.
+  function renderSpend(spend) {
+    const el = document.getElementById('spendMetrics');
+    if (!spend) {
+      el.innerHTML = `<div class="no-data">factory-hub not running — start with <code>start Factory</code></div>`;
       return;
     }
-    const c = data.cost;
-    // Connected but no spend yet (new account or zero-cost period)
-    if (!c || c.total === 0) {
-      el.innerHTML = `
-        <div class="metric-row"><span class="metric-label">Langfuse</span><span class="badge pass">Connected</span></div>
-        <div class="metric-row"><span class="metric-label">Cost this week</span><span class="metric-value ok">$0.00</span></div>
-        <div style="margin-top:8px;color:var(--text-muted);font-size:11px">No LLM spend recorded in Langfuse for this period</div>`;
-      return;
-    }
+    const t = spend.today || { models: {}, usd: 0 };
+    const p = spend.providers || {};
+    const claude = p.anthropic || {};
+    const openai = p.openai || {};
+    const ollama = p.ollama || {};
+    const modelRows = Object.entries(t.models)
+      .sort((a, b) => b[1].usd - a[1].usd)
+      .map(([m, u]) => `
+        <div class="metric-row">
+          <span class="metric-label">${escapeHtml(m)}</span>
+          <span class="metric-value">$${u.usd.toFixed(2)} <span class="dim">· ${fmtTokens(u.out)} out · ${u.requests} req</span></span>
+        </div>`).join('');
     el.innerHTML = `
       <div class="numbers-grid">
-        <div class="number-block"><div class="big-number info">$${(c.total || 0).toFixed(2)}</div><div class="sub-label">Total this week</div></div>
-        <div class="number-block"><div class="big-number ok">$${(c.saved_rtk || 0).toFixed(2)}</div><div class="sub-label">Saved by RTK</div></div>
+        <div class="number-block"><div class="big-number info">$${(t.usd || 0).toFixed(2)}</div><div class="sub-label">Today — API-equivalent (Max plan, not billed)</div></div>
+        <div class="number-block"><div class="big-number" style="color:var(--purple)">$${(claude.usd || 0).toFixed(2)}</div><div class="sub-label">All-time Claude equiv · ${fmtTokens(claude.out)} out · ${fmtTokens(claude.cacheRead)} cache-read</div></div>
       </div>
-      <div class="metric-row"><span class="metric-label">Claude tokens</span><span class="metric-value info">${(c.claude_tokens || 0).toLocaleString()}</span></div>
-      <div class="metric-row"><span class="metric-label">Codex tokens</span><span class="metric-value" style="color:var(--purple)">${(c.codex_tokens || 0).toLocaleString()}</span></div>
-      <div class="metric-row"><span class="metric-label">Ollama tasks</span><span class="metric-value ok">${(c.ollama_tasks || 0).toLocaleString()}</span></div>`;
+      ${modelRows}
+      <div class="metric-row"><span class="metric-label">OpenAI / Codex</span><span class="metric-value" style="color:var(--purple)">$${(openai.usd || 0).toFixed(2)} <span class="dim">· ${fmtTokens(openai.out)} out</span></span></div>
+      <div class="metric-row"><span class="metric-label">Ollama (local)</span><span class="metric-value ok">$0.00 <span class="dim">· ${(ollama.requests || 0).toLocaleString()} tasks</span></span></div>`;
   }
 
   function renderPR(data) {
@@ -604,29 +601,44 @@
     }).join('');
   }
 
-  function renderMCP(data, callCounts) {
+  // Real MCP status from factory-hub: local servers probed (deps/ports/recent
+  // calls, windows-dead flagged), claude.ai-hosted connectors listed separately.
+  function renderMCP(status, countersToday) {
     const el = document.getElementById('mcpStatus');
-    const servers = data && data.mcp_servers;
-    if (!servers || servers.length === 0) {
-      el.innerHTML = '<div class="no-data">Run scripts/metrics-collector.sh to populate MCP status</div>';
+    const hostedEl = document.getElementById('mcpHosted');
+    const countsEl = document.getElementById('mcpCounts');
+    if (!status || !status.mcp) {
+      el.innerHTML = '<div class="no-data">factory-hub not running — start with <code>start Factory</code></div>';
+      hostedEl.innerHTML = '';
+      countsEl.textContent = '';
       return;
     }
-    el.innerHTML = servers.map(s => {
-      const badge = s.active
-        ? '<span class="badge pass">active</span>'
-        : '<span class="badge skip">disabled</span>';
-      const calls = callCounts[s.name] || 0;
-      const callClass = calls > 0 ? 'mcp-calls has-calls' : 'mcp-calls';
+    const byServer = (countersToday && countersToday.byServer) || {};
+    const c = status.mcp.counts;
+    countsEl.textContent = `— local: ${c.local_ready} live / ${c.local_degraded} degraded / ${c.local_dead} dead of ${c.local_total} · hosted: ${c.hosted_total}`;
+
+    const stateBadge = (s) => {
+      if (s.state === 'ready')    return '<span class="badge pass">live</span>';
+      if (s.state === 'degraded') return `<span class="badge fail" title="${escapeHtml((s.failedDeps || []).join(', '))}">stopped</span>`;
+      if (s.state === 'dead')     return `<span class="badge fail" title="${escapeHtml(s.notes || '')}">dead</span>`;
+      return '<span class="badge skip">hosted</span>';
+    };
+    const tile = (s, callKey) => {
+      const calls = byServer[callKey] || 0;
       const callLabel = calls > 0 ? `${calls} call${calls !== 1 ? 's' : ''} today` : '';
       return `
         <div class="mcp-tile">
-          <div class="mcp-tile-name">${escapeHtml(s.name)}</div>
+          <div class="mcp-tile-name">${escapeHtml(s.displayName || s.name)}</div>
           <div class="mcp-tile-footer">
-            ${badge}
-            ${callLabel ? `<span class="${callClass}">${callLabel}</span>` : ''}
+            ${stateBadge(s)}
+            ${callLabel ? `<span class="mcp-calls has-calls">${callLabel}</span>` : ''}
           </div>
         </div>`;
-    }).join('');
+    };
+    el.innerHTML = status.mcp.local.map(s => tile(s, s.name)).join('');
+    hostedEl.innerHTML = `<div id="mcpStatusHostedGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:4px">${
+      status.mcp.hosted.map(s => tile(s, `${s.name.replace(/^claude-ai-/, '').replace(/-/g, '_')} (hosted)`)).join('')
+    }</div>`;
   }
 
   function renderRTK(data, rtkEvts) {
@@ -675,32 +687,34 @@
         </div>`).join('')}`;
   }
 
-  // ── Renderers: events.jsonl ───────────────────────────────────────────────────
-  function renderSessionStats(toolEvts) {
+  // ── Renderers: /api/events ────────────────────────────────────────────────────
+  // Counts come from counters.json (uncapped) — the feed is only the last 100
+  // events for display, so totals keep counting past 500.
+  function renderSessionStats(countersToday) {
     const el = document.getElementById('sessionStats');
     if (!serverConnected) {
       el.innerHTML = `
-        <div class="no-data">Server required</div>
+        <div class="no-data">factory-hub required</div>
         <div style="margin-top:8px">
-          <div class="metric-row"><span class="metric-label">Start server</span><span class="metric-value dim" style="font-size:10px">bash scripts/serve-dashboard.sh</span></div>
+          <div class="metric-row"><span class="metric-label">Start it</span><span class="metric-value dim" style="font-size:10px">start Factory (or node tools/factory-hub/server.mjs)</span></div>
         </div>`;
       return;
     }
-    const total      = toolEvts.length;
-    const counts     = mcpCallCounts(toolEvts);
-    const servers    = Object.keys(counts);
-    const topServer  = servers.sort((a, b) => counts[b] - counts[a])[0];
-    const mcpCalls   = toolEvts.filter(e => e.server !== 'builtin').length;
-    const builtinCalls = total - mcpCalls;
+    const total    = countersToday.total || 0;
+    const counts   = countersToday.byServer || {};
+    const origins  = countersToday.byOrigin || {};
+    const servers  = Object.keys(counts);
+    const topServer = servers.sort((a, b) => counts[b] - counts[a])[0];
 
     el.innerHTML = `
       <div class="numbers-grid">
-        <div class="number-block"><div class="big-number info">${total}</div><div class="sub-label">Tool calls today</div></div>
-        <div class="number-block"><div class="big-number" style="color:${serverColor(topServer || 'builtin')}">${servers.length}</div><div class="sub-label">Servers active</div></div>
+        <div class="number-block"><div class="big-number info">${total.toLocaleString()}</div><div class="sub-label">Tool calls today (uncapped)</div></div>
+        <div class="number-block"><div class="big-number" style="color:${serverColor((topServer || 'builtin').replace(' (hosted)',''))}">${servers.length}</div><div class="sub-label">Servers active</div></div>
       </div>
-      <div class="metric-row"><span class="metric-label">MCP calls</span><span class="metric-value info">${mcpCalls}</span></div>
-      <div class="metric-row"><span class="metric-label">Built-in calls</span><span class="metric-value dim">${builtinCalls}</span></div>
-      ${topServer ? `<div class="metric-row"><span class="metric-label">Top server</span><span class="metric-value" style="color:${serverColor(topServer)}">${escapeHtml(topServer)}</span></div>` : ''}`;
+      <div class="metric-row"><span class="metric-label">Local MCP calls</span><span class="metric-value info">${(origins.local || 0).toLocaleString()}</span></div>
+      <div class="metric-row"><span class="metric-label">Hosted MCP calls</span><span class="metric-value" style="color:var(--purple)">${(origins.hosted || 0).toLocaleString()}</span></div>
+      <div class="metric-row"><span class="metric-label">Built-in calls</span><span class="metric-value dim">${(origins.builtin || 0).toLocaleString()}</span></div>
+      ${topServer ? `<div class="metric-row"><span class="metric-label">Top server</span><span class="metric-value" style="color:${serverColor(topServer.replace(' (hosted)',''))}">${escapeHtml(topServer)}</span></div>` : ''}`;
   }
 
   function renderLiveActivity(toolEvts) {
@@ -709,8 +723,8 @@
     if (!serverConnected) {
       el.innerHTML = `
         <div class="no-data">
-          Real-time events need an HTTP server.
-          Run <strong>bash scripts/serve-dashboard.sh</strong> then open <strong>http://localhost:3099</strong>
+          Real-time events need factory-hub.
+          Run <strong>start Factory</strong> then open <strong>http://localhost:3099</strong>
         </div>`;
       return;
     }
@@ -728,10 +742,12 @@
     el.innerHTML = `<div class="event-list">${
       recent.map(e => {
         const color = serverColor(e.server);
+        const originChip = e.origin === 'hosted'
+          ? ' <span class="badge skip" style="font-size:9px;padding:0 4px">hosted</span>' : '';
         return `
           <div class="event-row">
             <span class="event-ts">${relativeTime(e.ts)}</span>
-            <span class="event-server" style="color:${color}">${escapeHtml(e.server)}</span>
+            <span class="event-server" style="color:${color}">${escapeHtml(e.server)}${originChip}</span>
             <span class="event-tool">${escapeHtml(e.tool)}</span>
             <span class="event-summary">${e.summary ? escapeHtml(e.summary) : ''}</span>
           </div>`;
@@ -757,40 +773,42 @@
 
   // ── Poll loops ────────────────────────────────────────────────────────────────
   let lastMetricsData = null;
+  let lastStatusData  = null;
+  let lastCountersToday = { total: 0, byServer: {}, byOrigin: {} };
 
+  // slow loop (60s): metrics.json passthrough + spend + service status
   async function pollMetrics() {
-    lastMetricsData = await loadMetrics();
-    const callCounts = mcpCallCounts(todaysToolEvents(eventCache));
+    const [metrics, spend, status] = await Promise.all([loadMetrics(), loadSpend(), loadStatus()]);
+    lastMetricsData = metrics;
+    lastStatusData  = status;
 
-    renderWorkforceChart(lastMetricsData);
-    renderCost(lastMetricsData);
-    renderPR(lastMetricsData);
-    renderSecurity(lastMetricsData);
-    renderMCP(lastMetricsData, callCounts);
-    renderRTK(lastMetricsData, todaysRtkEvents(eventCache));
+    renderWorkforceChart(metrics);
+    renderSpend(spend);
+    renderPR(metrics);
+    renderSecurity(metrics);
+    renderMCP(status, lastCountersToday);
+    renderRTK(metrics, todaysRtkEvents(eventCache));
 
-    const ts = lastMetricsData && lastMetricsData.updated_at
-      ? `metrics: ${new Date(lastMetricsData.updated_at).toLocaleTimeString()}`
+    const ts = metrics && metrics.updated_at
+      ? `metrics: ${new Date(metrics.updated_at).toLocaleTimeString()}`
       : 'metrics: run metrics-collector.sh';
     document.getElementById('last-updated').textContent = ts;
   }
 
+  // fast loop (3s): live feed + uncapped counters
   async function pollEvents() {
-    const events = await loadEvents();
-    if (events !== null) {
-      eventCache = events;
+    const data = await loadEvents();
+    if (data !== null) {
+      eventCache = data.feed || [];
+      lastCountersToday = data.today || lastCountersToday;
     }
-    const toolEvts = todaysToolEvents(eventCache);
+    const toolEvts = eventCache.filter(e => e.type === 'tool');
     const rtkEvts  = todaysRtkEvents(eventCache);
 
-    renderSessionStats(toolEvts);
+    renderSessionStats(lastCountersToday);
     renderLiveActivity(toolEvts);
     renderRTK(lastMetricsData, rtkEvts);
-
-    // Refresh MCP call counts on every event poll
-    if (lastMetricsData) {
-      renderMCP(lastMetricsData, mcpCallCounts(toolEvts));
-    }
+    if (lastStatusData) renderMCP(lastStatusData, lastCountersToday);
 
     updateConnStatus(toolEvts.length > 0 || rtkEvts.length > 0);
   }
@@ -799,10 +817,10 @@
   pollMetrics();
   pollEvents();
 
-  // metrics.json: 60s (near-real-time, pulls from GitHub/Langfuse)
+  // /api/metrics + /api/spend + /api/status: 60s
   setInterval(pollMetrics, 60_000);
 
-  // events.jsonl: 3s (real-time — tool calls, RTK events)
+  // /api/events: 3s (real-time — tool calls, RTK events, uncapped counters)
   setInterval(pollEvents, 3_000);
 </script>
 </body>

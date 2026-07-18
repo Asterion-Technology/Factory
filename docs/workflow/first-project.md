@@ -106,7 +106,7 @@ I'm working on ENG-1 — Add factory health check endpoint.
 Please implement a /health endpoint. The implementation should:
 1. Check Ollama at OLLAMA_HOST (env var, default http://localhost:11434)
 2. Check the database using the existing DB connection
-3. Count configured MCP servers from mcp/mcp.factory.json
+3. Count configured MCP servers from mcp/registry.json
 4. Check LiteLLM at LITELLM_HOST (env var, default http://localhost:4000)
 5. Return 200 with structured JSON, respond in < 500ms
 
@@ -177,18 +177,20 @@ Within 2 minutes you should see:
 
 ## Part 9: Check the Observation Deck
 
-Open `dashboards/observation-deck/index.html` in a browser.
+Run `start Factory` (or `node scripts/start-factory.mjs`) and open http://localhost:3099 —
+factory-hub serves the dashboard and the live APIs behind it.
 
-To collect live metrics immediately (instead of waiting for the 6-hour cron):
+To collect PR/CI metrics immediately (instead of waiting for the 6-hour cron):
 
 ```bash
 bash scripts/metrics-collector.sh --repo your-org/your-repo --days 7
 ```
 
-Refresh the dashboard. You should see:
+You should see:
+- LLM Spend: real per-model token usage from your Claude Code transcripts
 - PR Velocity: 1 merged this week
 - Security Gates: all green
-- MCP Server Status: 19 active
+- MCP Servers: local servers live/stopped/dead + claude.ai-hosted connectors
 
 ---
 
@@ -210,7 +212,7 @@ The `CHANGELOG.md` at the root should now contain a `[Unreleased]` entry describ
 Run `bash scripts/bootstrap.sh --check` to see which vars are missing. Check `bootstrap/first-run.md` for where to get each key.
 
 ### "MCP server not found"
-Re-run `bash scripts/install-mcps.sh`. This re-syncs `mcp/mcp.factory.json` to the Claude Code global config.
+Re-run `bash scripts/install-mcps.sh`. This regenerates `.mcp.json` from `mcp/registry.json` and re-syncs it to the Claude Code global config.
 
 ### "Ollama unavailable"
 Check Docker: `docker ps | grep ollama`. If not running: `docker run -d -p 11434:11434 ollama/ollama`.
@@ -239,6 +241,6 @@ Read the Codex comment carefully. The finding is typically real. Fix the issue, 
 After your first project completes the full cycle:
 
 1. **Add a real feature** — Pick a real Linear issue from the backlog and run it through
-2. **Configure Langfuse** — Wire up `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to get real cost tracking in the Observation Deck
+2. **Check LLM spend** — factory-hub computes real per-model spend from Claude Code transcripts (no Langfuse needed)
 3. **Tune model routing** — Adjust `config/litellm.yaml` based on your actual usage patterns
 4. **Review the TODO** — `TODO.md` at the root lists all known out-of-scope items and technical debt

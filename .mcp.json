@@ -1,0 +1,209 @@
+{
+  "mcpServers": {
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sentry/mcp-server@latest"
+      ],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_TOKEN}",
+        "SENTRY_ORG": "${SENTRY_ORG}",
+        "SENTRY_PROJECT": "${SENTRY_PROJECT}"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "env": {}
+    },
+    "slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+    "neon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon@latest",
+        "start",
+        "${NEON_API_KEY}"
+      ],
+      "env": {
+        "NEON_API_KEY": "${NEON_API_KEY}"
+      }
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server@latest"
+      ],
+      "env": {
+        "MONGODB_URI": "${MONGODB_URI}"
+      }
+    },
+    "railway": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@railway/mcp-server@latest"
+      ],
+      "env": {
+        "RAILWAY_TOKEN": "${RAILWAY_TOKEN}",
+        "RAILWAY_API_TOKEN": "${RAILWAY_TOKEN}"
+      }
+    },
+    "magic": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@21st-dev/magic@latest"
+      ],
+      "env": {
+        "API_KEY": "${TWENTYFIRST_API_KEY}"
+      }
+    },
+    "factory-clerk": {
+      "command": "node",
+      "args": [
+        "mcp/servers/clerk/index.js"
+      ],
+      "env": {
+        "CLERK_SECRET_KEY": "${CLERK_SECRET_KEY}"
+      }
+    },
+    "factory-idme": {
+      "command": "node",
+      "args": [
+        "mcp/servers/idme/index.js"
+      ],
+      "env": {
+        "IDME_API_KEY": "${IDME_API_KEY}"
+      }
+    },
+    "factory-meilisearch": {
+      "command": "node",
+      "args": [
+        "mcp/servers/meilisearch/index.js"
+      ],
+      "env": {
+        "MEILI_HOST": "${MEILI_HOST}",
+        "MEILI_MASTER_KEY": "${MEILI_MASTER_KEY}"
+      }
+    },
+    "factory-snyk": {
+      "command": "node",
+      "args": [
+        "mcp/servers/snyk/index.js"
+      ],
+      "env": {
+        "SNYK_TOKEN": "${SNYK_TOKEN}"
+      }
+    },
+    "factory-semgrep": {
+      "command": "node",
+      "args": [
+        "mcp/servers/semgrep/index.js"
+      ],
+      "env": {
+        "SEMGREP_APP_TOKEN": "${SEMGREP_APP_TOKEN}"
+      }
+    },
+    "factory-sonarqube": {
+      "command": "node",
+      "args": [
+        "mcp/servers/sonarqube/index.js"
+      ],
+      "env": {
+        "SONAR_TOKEN": "${SONAR_TOKEN}",
+        "SONAR_HOST_URL": "${SONAR_HOST_URL}"
+      }
+    },
+    "factory-resend": {
+      "command": "node",
+      "args": [
+        "mcp/servers/resend/index.js"
+      ],
+      "env": {
+        "RESEND_API_KEY": "${RESEND_API_KEY}"
+      }
+    },
+    "factory-r2": {
+      "command": "node",
+      "args": [
+        "mcp/servers/cloudflare-r2/index.js"
+      ],
+      "env": {
+        "R2_ACCESS_KEY_ID": "${R2_ACCESS_KEY_ID}",
+        "R2_SECRET_ACCESS_KEY": "${R2_SECRET_ACCESS_KEY}",
+        "R2_BUCKET": "${R2_BUCKET}",
+        "R2_ACCOUNT_ID": "${R2_ACCOUNT_ID}"
+      }
+    },
+    "factory-railway": {
+      "command": "node",
+      "args": [
+        "mcp/servers/railway/index.js"
+      ],
+      "env": {
+        "RAILWAY_TOKEN": "${RAILWAY_TOKEN}"
+      }
+    },
+    "factory-ollama": {
+      "command": "node",
+      "args": [
+        "mcp/servers/ollama/index.js"
+      ],
+      "env": {
+        "OLLAMA_HOST": "${OLLAMA_HOST}",
+        "RTK_MODEL": "${RTK_MODEL}"
+      }
+    },
+    "factory-knowledge": {
+      "command": "node",
+      "args": [
+        "mcp/servers/knowledge/index.js"
+      ],
+      "env": {
+        "CHROMA_HOST": "${CHROMA_HOST}",
+        "CHROMA_TOKEN": "${CHROMA_TOKEN}",
+        "OLLAMA_HOST": "${OLLAMA_HOST}",
+        "EMBED_MODEL": "${EMBED_MODEL}"
+      }
+    }
+  }
+}

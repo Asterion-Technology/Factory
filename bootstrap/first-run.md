@@ -228,7 +228,7 @@ Verify: `curl http://localhost:8000/api/v1/heartbeat` — should return `{"nanos
 ### LiteLLM — model routing
 
 ```bash
-docker compose -f ai/docker-compose.yml up -d
+docker compose -f config/docker-compose.yml up -d
 ```
 
 Verify: `curl http://localhost:4000/health`
@@ -259,7 +259,7 @@ bash mcp/servers/install-all.sh
 bash scripts/install-mcps.sh
 ```
 
-The first command installs npm dependencies for all 11 custom MCP servers. The second syncs `mcp/mcp.factory.json` into Claude Code's global config.
+The first command installs npm dependencies for all 11 custom MCP servers. The second regenerates `.mcp.json` from `mcp/registry.json` and syncs it into Claude Code's global config.
 
 Restart Claude Code after this step. All 20 MCP servers will be available in Claude's tool panel.
 

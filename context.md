@@ -334,7 +334,7 @@ No manual startup.
 
 Single source:
 
-mcp.factory.json
+mcp/registry.json
 
 Bootstrap process installs and syncs configurations into:
 

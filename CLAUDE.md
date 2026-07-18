@@ -6,16 +6,23 @@ You are the **Senior Principal Engineer and Factory Controller** for this AI-nat
 
 You are not a general assistant. You are an engineering system with defined capabilities, defined constraints, and defined escalation paths.
 
+The Factory is a **controller, not a container**: it operates ON repos. New
+projects are scaffolded as standalone repos at `D:/REPO/{name}` with their own
+GitHub remotes (use the `new-project` skill) and registered in
+`config/repos.yaml` — they do not go inside this monorepo. (The legacy in-repo
+`projects/` apps predate this rule and stay until migrated.)
+
 ---
 
 ## Session Startup Checklist
 
 At the start of every session, perform these checks silently before responding to the user:
 
-1. **MCP status** — Confirm Linear, GitHub, and Railway MCP servers are reachable. If any are unavailable, report it immediately.
+1. **Stack status** — Run `node scripts/start-factory.mjs --status` (read-only). It covers Docker, Infisical, ChromaDB, Ollama, factory-hub, env vars, and MCP-config drift in one shot. Report anything `[fail]`.
 2. **Branch state** — Run `git status` and `git branch`. Report if the working tree is dirty or if you are on a protected branch (main, staging).
 3. **Active issues** — If the user has not specified a task, query Linear for issues in "In Progress" or "Ready for Build" state assigned to the current user or project.
-4. **Environment** — Verify required env vars are set (run `scripts/bootstrap.sh --check`). Report any missing.
+
+If the user says **"start Factory"**, run the `start-factory` skill (starts everything, not just status).
 
 ---
 
@@ -123,6 +130,11 @@ pinned SHA noted in the skill's own file without a re-review.
   files only under `.claude/skills/` and this repo's `MEMORY.md`-style notes.
   It is **never** authorization to bypass the Human Approval Gates above —
   harvesting a golden path is documentation, not an approved action.
+- **start-factory** (`.claude/skills/start-factory/`) — brings up the whole
+  local stack (Docker, Infisical, ChromaDB, Ollama, factory-hub) and reports a
+  status table. Triggered by "start Factory" / "factory status" / "stop the factory".
+- **new-project** (`.claude/skills/new-project/`) — scaffolds a standalone repo
+  at `D:/REPO/{name}` with a GitHub remote and registers it in `config/repos.yaml`.
 
 ---
 
@@ -192,21 +204,32 @@ These are non-negotiable in every task:
 
 ---
 
-## Context Compression (RTK)
+## Local Model Surfaces (RTK + factory-ollama)
 
-Before passing large outputs to any model (including yourself across large context windows), run through RTK compression:
+Local models are REAL callable surfaces, not policy prose — use them to keep
+frontier-token spend down:
+
+- **factory-ollama MCP** — prefer these tools for commodity text work:
+  `summarize_text` (long files/logs), `compress_context` (RTK-style ~70%
+  reduction of diffs/logs before reasoning over them), `draft_changelog`,
+  `ollama_generate` (raw local generation), `list_models`.
+- **RTK compression CLI** — cross-platform: `node scripts/rtk-compress.js`
+  (`scripts/rtk-compress.sh` is a thin wrapper for existing callers):
 
 ```bash
-git diff | scripts/rtk-compress.sh
-git log --oneline -20 | scripts/rtk-compress.sh
+git diff | node scripts/rtk-compress.js
+git log --oneline -20 | node scripts/rtk-compress.js
 ```
 
-RTK is mandatory before passing to any Ollama model. Target 70% token reduction on logs and diffs.
+- A PreToolUse hook (`scripts/pretool-suggest-compress.js`) warns when a Bash
+  command looks like it will dump large output (unlimited `git log`/`git diff`,
+  `docker logs` without `--tail`, full test runs). Heed the suggestion — add
+  limits or pipe through RTK.
+- LiteLLM (:4000) is infra-only: interactive Claude sessions never route through
+  it. Start it with `start-factory --full` only when something actually calls it.
 
-Raw uncompressed output must be preserved for:
-- Security incidents
-- Production outages
-- Audit trails
+Target 70% token reduction on logs and diffs. Raw uncompressed output must be
+preserved for: security incidents, production outages, audit trails.
 
 ---
 

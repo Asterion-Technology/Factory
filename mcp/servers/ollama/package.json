@@ -1,0 +1,11 @@
+{
+  "name": "factory-ollama-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Factory local-model MCP server — summarize, compress, and draft on Ollama to keep frontier-token spend down",
+  "main": "index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  }
+}

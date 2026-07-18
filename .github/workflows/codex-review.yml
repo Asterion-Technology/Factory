@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PR diff (RTK-compressed)
+      - name: Get PR diff (truncate to 3000 lines)
         id: diff
         run: |
           git diff origin/${{ github.base_ref }}...HEAD > /tmp/pr.diff

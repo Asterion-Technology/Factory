@@ -45,3 +45,15 @@ litellm.db
 
 # Devcontainer local secrets
 .devcontainer/.env
+
+# Claude Code local overrides (personal, never shared)
+.claude/settings.local.json
+
+# Observation Deck runtime data (produced by hooks/collector/hub — not source)
+dashboards/observation-deck/events.jsonl
+dashboards/observation-deck/metrics.json
+dashboards/observation-deck/counters.json
+tools/factory-hub/data/
+
+# Playwright MCP session artifacts
+.playwright-mcp/
