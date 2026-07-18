@@ -3,6 +3,12 @@
 ## [Unreleased] — 2026-07-18
 
 ### Changed
+- Merge pull request #18 from Asterion-Technology/feature/RAD-17-ca-tax
+
+
+## [Unreleased] — 2026-07-18
+
+### Changed
 - Merge pull request #15 from Asterion-Technology/feature/RAD-18-email-provider
 
 
