@@ -163,6 +163,13 @@
 - [ ] appendAuditEvent is non-atomic (getLast then append): concurrent staff actions can fork the chain, causing a FALSE tamper alarm (availability nuisance, not a bypass) — serialize appends (Durable Object or retry-on-fork)
 - [ ] Full security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
 
+#### Cloudflare Access rollout (RAD-15, ADR 0002, started 2026-07-18)
+- [x] ADR 0002 + app-side verifier: lib/staff.ts requireStaff() verifies the Access JWT (RS256 vs team JWKS, aud/iss/exp), maps identity to role (SAC_STAFF_ROLES or IdP group claim), dev fallback on ALLOW_CLIO_CONNECT; wired into the read-only staff routes (ops, audit, audit/export)
+- [ ] HUMAN (dashboard): add a custom domain to stopallcalls-web-dev (Access cannot protect *.workers.dev), create the Access self-hosted app (note the AUD tag), add an IdP with MFA, write allow policies; then set CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD (+ optional SAC_STAFF_ROLES) as wrangler vars and remove ALLOW_CLIO_CONNECT from the deployed env
+- [ ] Migrate the WRITE staff routes (conflict disposition, EMT confirm, identity override, letter decision/send) to take the actor from requireStaff() instead of the request body (closes the spoofable-actor gap); relax the now-redundant actor fields in the contracts schemas
+- [ ] Live-verify requireStaff against a real Access JWT once configured (JWKS fetch + signature path untested against live Access)
+- [ ] CHECK: Cloudflare build #3164b081 failed (2026-07-18) — investigate in the dashboard (Workers Builds / connected-repo build); likely unrelated to the local build:cf which passes
+
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
   - Location: `projects/stopallcalls/docs/BUILD_PLAN.md` (open decisions table)

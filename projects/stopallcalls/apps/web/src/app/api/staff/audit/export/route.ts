@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { verifyAuditChain } from '@stopallcalls/db';
-import { jsonError, withErrorHandling } from '@/lib/api';
-import { clioConnectEnabled } from '@/lib/clio';
+import { withErrorHandling } from '@/lib/api';
+import { requireStaff } from '@/lib/staff';
 import { getAuditStore } from '@/lib/store';
 
 // SEC-011/SEC-014: audit-trail export as NDJSON. Line 1 is an export manifest
@@ -9,9 +9,9 @@ import { getAuditStore } from '@/lib/store';
 // deletions, reordering without rehashing); it cannot detect a rewrite or
 // tail-truncation by an actor with direct DB write access until external
 // head anchoring lands (TODO.md). Every following line is one event in order.
-export async function GET() {
+export async function GET(req: NextRequest) {
   return withErrorHandling(async () => {
-    if (!clioConnectEnabled()) return jsonError(404, 'NOT_FOUND', 'Not found.');
+    await requireStaff(req);
     const events = await getAuditStore().list();
     const chain = await verifyAuditChain(events);
     const lines = [
