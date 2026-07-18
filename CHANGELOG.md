@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] — 2026-07-18
+
+### Changed
+- Merge pull request #10 from Asterion-Technology/feature/AST-167-stopallcalls-project
+
+
 ## [Unreleased] — 2026-07-06
 
 ### Changed
