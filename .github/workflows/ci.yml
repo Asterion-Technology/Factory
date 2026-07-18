@@ -159,27 +159,23 @@ jobs:
           name: playwright-report
           path: playwright-report/
 
-  # ── Gate 10: Validate MCP factory config ────────────────────────────────────
+  # ── Gate 10: Validate MCP registry + generated config ───────────────────────
   validate-mcp-config:
-    name: Validate mcp.factory.json
+    name: Validate MCP registry
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate JSON
+      - name: Registry is valid JSON and .mcp.json is in sync
         run: |
-          if [ -f "mcp/mcp.factory.json" ]; then
-            python3 -c "import json, sys; json.load(open('mcp/mcp.factory.json')); print('[ok] mcp.factory.json is valid JSON')"
-          else
-            echo "[fail] mcp/mcp.factory.json not found"
-            exit 1
-          fi
+          python3 -c "import json; json.load(open('mcp/registry.json')); print('[ok] registry.json is valid JSON')"
+          node scripts/gen-mcp-config.mjs --check
       - name: Verify all required servers present
         run: |
           python3 - <<'EOF'
           import json
           required = ["linear","github","sentry","context7","playwright","neon","mongodb","railway","figma"]
-          data = json.load(open("mcp/mcp.factory.json"))
-          servers = list(data["mcpServers"].keys())
+          data = json.load(open("mcp/registry.json"))
+          servers = [k for k, v in data["servers"].items() if v["status"] == "active"]
           missing = [s for s in required if s not in servers]
           if missing:
             print(f"[fail] Missing required MCP servers: {missing}")

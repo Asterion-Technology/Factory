@@ -106,7 +106,7 @@ I'm working on ENG-1 — Add factory health check endpoint.
 Please implement a /health endpoint. The implementation should:
 1. Check Ollama at OLLAMA_HOST (env var, default http://localhost:11434)
 2. Check the database using the existing DB connection
-3. Count configured MCP servers from mcp/mcp.factory.json
+3. Count configured MCP servers from mcp/registry.json
 4. Check LiteLLM at LITELLM_HOST (env var, default http://localhost:4000)
 5. Return 200 with structured JSON, respond in < 500ms
 
@@ -210,7 +210,7 @@ The `CHANGELOG.md` at the root should now contain a `[Unreleased]` entry describ
 Run `bash scripts/bootstrap.sh --check` to see which vars are missing. Check `bootstrap/first-run.md` for where to get each key.
 
 ### "MCP server not found"
-Re-run `bash scripts/install-mcps.sh`. This re-syncs `mcp/mcp.factory.json` to the Claude Code global config.
+Re-run `bash scripts/install-mcps.sh`. This regenerates `.mcp.json` from `mcp/registry.json` and re-syncs it to the Claude Code global config.
 
 ### "Ollama unavailable"
 Check Docker: `docker ps | grep ollama`. If not running: `docker run -d -p 11434:11434 ollama/ollama`.

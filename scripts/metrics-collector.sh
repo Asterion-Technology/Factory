@@ -363,15 +363,17 @@ RTK_AVG_REDUCTION="${RTK_AVG_REDUCTION:-0}"
 RTK_TOKENS_SAVED="${RTK_TOKENS_SAVED:-0}"
 RTK_SESSIONS="${RTK_SESSIONS:-0}"
 
-# ── Read MCP server list and embed in metrics.json ────────────────────────────
+# ── Read MCP server list from the registry and embed in metrics.json ──────────
 MCP_JSON="[]"
-MCP_FILE="${FACTORY_ROOT}/mcp/mcp.factory.json"
+MCP_FILE="${FACTORY_ROOT}/mcp/registry.json"
 if [[ -f "$MCP_FILE" ]]; then
   # cygpath -m converts POSIX path to Windows mixed (forward slashes) for Node on Windows
   MCP_FILE_NODE=$(cygpath -m "$MCP_FILE" 2>/dev/null || echo "$MCP_FILE")
   MCP_JSON=$(node -e "
     const d = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
-    const out = Object.entries(d.mcpServers || {}).map(([k,v]) => ({name:k, active:!v.disabled}));
+    const out = Object.entries(d.servers || {})
+      .filter(([,v]) => v.status !== 'retired')
+      .map(([k,v]) => ({name:k, active:v.status==='active', origin:v.origin}));
     process.stdout.write(JSON.stringify(out));
   " "$MCP_FILE_NODE" 2>/dev/null || echo "[]")
 fi

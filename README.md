@@ -90,7 +90,7 @@ Model routing is handled by LiteLLM. Ollama handles 50-60% of task volume at zer
 | factory-magic21 | UI/UX generation, API execution |
 | factory-knowledge | Semantic search over ADRs, threat models, runbooks (ChromaDB + nomic-embed-text) |
 
-All 19 entries are defined in `mcp/mcp.factory.json`. Run `scripts/install-mcps.sh` to sync to Claude Code.
+All entries are defined in `mcp/registry.json` (single source of truth). `scripts/gen-mcp-config.mjs` generates `.mcp.json` from it; run `scripts/install-mcps.sh` to sync to Claude Code.
 
 ## Human approval gates
 
@@ -121,7 +121,7 @@ Factory/
 ├── .claude/settings.json        ← Pre-approved permissions for Claude Code
 ├── .devcontainer/               ← Portable development environment
 ├── .github/workflows/           ← CI gates + Codex review
-├── mcp/mcp.factory.json         ← All MCP server definitions (single source)
+├── mcp/registry.json            ← All MCP server definitions (single source)
 ├── config/litellm.yaml          ← Model routing: Claude / Ollama / Codex
 ├── agents/                      ← Agent capability cards
 ├── prompts/                     ← Task-type prompts routed to each agent

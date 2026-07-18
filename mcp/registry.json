@@ -1,0 +1,295 @@
+{
+  "version": "1.0.0",
+  "description": "Single source of truth for Factory MCP servers. scripts/gen-mcp-config.mjs generates .mcp.json and the enabledMcpjsonServers list from this file. The factory-hub dashboard reads this file for status/origin metadata. Do not edit .mcp.json by hand.",
+  "origins": {
+    "local-node": "stdio server run via node from mcp/servers/",
+    "local-npx": "stdio server run via npx (third-party package)",
+    "remote-http": "remote HTTP/SSE MCP endpoint, launched per-session by Claude Code",
+    "hosted-claude-ai": "claude.ai connector — runs inside Claude, no local process, not part of .mcp.json"
+  },
+  "statuses": {
+    "active": "generated into .mcp.json and enabled",
+    "windows-dead": "kept in .mcp.json for visibility, but known broken on this Windows host — hub shows it dead",
+    "retired": "never generated; stub kept so removal is provably deliberate"
+  },
+  "servers": {
+    "linear": {
+      "origin": "remote-http",
+      "status": "active",
+      "config": { "type": "http", "url": "https://mcp.linear.app/mcp" },
+      "notes": "Also available as a hosted claude.ai connector in some sessions — duplicate inventories cost context; see TODO."
+    },
+    "github": {
+      "origin": "remote-http",
+      "status": "active",
+      "config": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/",
+        "headers": { "Authorization": "Bearer ${GITHUB_TOKEN}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "GITHUB_TOKEN" }]
+    },
+    "figma": {
+      "origin": "remote-http",
+      "status": "active",
+      "config": { "type": "http", "url": "https://mcp.figma.com/mcp" }
+    },
+    "sentry": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@sentry/mcp-server@latest"],
+        "env": {
+          "SENTRY_ACCESS_TOKEN": "${SENTRY_TOKEN}",
+          "SENTRY_ORG": "${SENTRY_ORG}",
+          "SENTRY_PROJECT": "${SENTRY_PROJECT}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "SENTRY_TOKEN" }],
+      "notes": "Duplicate of the hosted claude.ai Sentry connector when that is authorized."
+    },
+    "context7": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@upstash/context7-mcp@latest"],
+        "env": {}
+      },
+      "notes": "Duplicate of the hosted claude.ai Context7 connector when that is authorized."
+    },
+    "slack": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-slack"],
+        "env": {
+          "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+          "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "SLACK_BOT_TOKEN" }]
+    },
+    "playwright": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest"],
+        "env": {}
+      }
+    },
+    "neon": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@neondatabase/mcp-server-neon@latest", "start", "${NEON_API_KEY}"],
+        "env": { "NEON_API_KEY": "${NEON_API_KEY}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "NEON_API_KEY" }]
+    },
+    "mongodb": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "mongodb-mcp-server@latest"],
+        "env": { "MONGODB_URI": "${MONGODB_URI}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "MONGODB_URI" }]
+    },
+    "railway": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@railway/mcp-server@latest"],
+        "env": {
+          "RAILWAY_TOKEN": "${RAILWAY_TOKEN}",
+          "RAILWAY_API_TOKEN": "${RAILWAY_TOKEN}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "RAILWAY_TOKEN" }]
+    },
+    "magic": {
+      "origin": "local-npx",
+      "status": "active",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@21st-dev/magic@latest"],
+        "env": { "API_KEY": "${TWENTYFIRST_API_KEY}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "TWENTYFIRST_API_KEY" }]
+    },
+    "factory-clerk": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/clerk/index.js"],
+        "env": { "CLERK_SECRET_KEY": "${CLERK_SECRET_KEY}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "CLERK_SECRET_KEY" }]
+    },
+    "factory-idme": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/idme/index.js"],
+        "env": { "IDME_API_KEY": "${IDME_API_KEY}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "IDME_API_KEY" }]
+    },
+    "factory-meilisearch": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/meilisearch/index.js"],
+        "env": {
+          "MEILI_HOST": "${MEILI_HOST}",
+          "MEILI_MASTER_KEY": "${MEILI_MASTER_KEY}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "MEILI_HOST" }]
+    },
+    "factory-snyk": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/snyk/index.js"],
+        "env": { "SNYK_TOKEN": "${SNYK_TOKEN}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "SNYK_TOKEN" }]
+    },
+    "factory-semgrep": {
+      "origin": "local-node",
+      "status": "windows-dead",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/semgrep/index.js"],
+        "env": { "SEMGREP_APP_TOKEN": "${SEMGREP_APP_TOKEN}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "SEMGREP_APP_TOKEN" }],
+      "notes": "Known dead on Windows (semgrep binary unavailable; see AST-214 context). Kept in .mcp.json so the failure is visible instead of hidden; hub reports it dead."
+    },
+    "factory-sonarqube": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/sonarqube/index.js"],
+        "env": {
+          "SONAR_TOKEN": "${SONAR_TOKEN}",
+          "SONAR_HOST_URL": "${SONAR_HOST_URL}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "SONAR_TOKEN" }]
+    },
+    "factory-resend": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/resend/index.js"],
+        "env": { "RESEND_API_KEY": "${RESEND_API_KEY}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "RESEND_API_KEY" }]
+    },
+    "factory-r2": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/cloudflare-r2/index.js"],
+        "env": {
+          "R2_ACCESS_KEY_ID": "${R2_ACCESS_KEY_ID}",
+          "R2_SECRET_ACCESS_KEY": "${R2_SECRET_ACCESS_KEY}",
+          "R2_BUCKET": "${R2_BUCKET}",
+          "R2_ACCOUNT_ID": "${R2_ACCOUNT_ID}"
+        }
+      },
+      "dependsOn": [{ "kind": "env", "value": "R2_ACCESS_KEY_ID" }]
+    },
+    "factory-railway": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/railway/index.js"],
+        "env": { "RAILWAY_TOKEN": "${RAILWAY_TOKEN}" }
+      },
+      "dependsOn": [{ "kind": "env", "value": "RAILWAY_TOKEN" }]
+    },
+    "factory-knowledge": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/knowledge/index.js"],
+        "env": {
+          "CHROMA_HOST": "${CHROMA_HOST}",
+          "CHROMA_TOKEN": "${CHROMA_TOKEN}",
+          "OLLAMA_HOST": "${OLLAMA_HOST}",
+          "EMBED_MODEL": "${EMBED_MODEL}"
+        }
+      },
+      "dependsOn": [
+        { "kind": "port", "value": 8000, "service": "chromadb" },
+        { "kind": "port", "value": 11434, "service": "ollama" }
+      ]
+    },
+    "claude-ai-cloudflare": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Cloudflare Developer Platform",
+      "notes": "Runs inside claude.ai; no local process to probe."
+    },
+    "claude-ai-context7": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Context7",
+      "notes": "Duplicates the local-npx context7 server."
+    },
+    "claude-ai-microsoft-365": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Microsoft 365"
+    },
+    "claude-ai-sentry": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Sentry",
+      "notes": "Duplicates the local-npx sentry server."
+    },
+    "claude-ai-slidesgpt": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "SlidesGPT"
+    },
+    "claude-ai-google-drive": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Google Drive",
+      "notes": "Requires OAuth authorization in claude.ai connector settings."
+    },
+    "claude-ai-stripe": {
+      "origin": "hosted-claude-ai",
+      "status": "active",
+      "displayName": "Stripe",
+      "notes": "Requires OAuth authorization in claude.ai connector settings."
+    },
+    "filesystem": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; superseded by Claude Code built-in file tools." },
+    "postgres": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; superseded by neon MCP." },
+    "fetch": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; superseded by Claude Code built-in WebFetch." },
+    "docker": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; never shipped." },
+    "aws": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; no AWS footprint — stack is Cloudflare/Railway/Neon." },
+    "memory": { "origin": "local-npx", "status": "retired", "notes": "Legacy template name; superseded by Claude Code persistent memory." },
+    "factory-magic21": { "origin": "local-node", "status": "retired", "notes": "Fictional package name from early planning; real server is 'magic' (@21st-dev/magic)." }
+  }
+}

@@ -19,7 +19,7 @@ Deploy a three-tier AI workforce with defined roles, permissions, and routing ru
 
 All work originates in **Linear** as the operational source of truth. All code changes flow through **GitHub** with branch protection and 10 mandatory CI gates. All deployments target **Railway** with environment-gated human approval before production.
 
-A single `mcp/mcp.factory.json` defines all MCP server integrations and is auto-provisioned to Claude Code, Cursor, and VS Code on every workstation via `scripts/bootstrap.sh`. This provides seamless portability — a developer can clone the repo and have all tools available without manual configuration.
+A single `mcp/registry.json` defines all MCP server integrations (`.mcp.json` is generated from it) and is auto-provisioned to Claude Code, Cursor, and VS Code on every workstation via `scripts/bootstrap.sh`. This provides seamless portability — a developer can clone the repo and have all tools available without manual configuration.
 
 **LiteLLM** provides model routing with automatic fallback (Ollama → Claude if local fails twice). **RTK compression** reduces token spend by ~70% on logs and diffs before they reach any frontier model.
 
