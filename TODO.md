@@ -108,6 +108,16 @@
 - [ ] Retry queue + staff resolution for permanent Clio failures (CLIO-008/CLIO-009) — needs the `stopallcalls-jobs-dev` consumer (still a Phase 0 stub); move the post-submit conflict check there too
 - [ ] Staff conflict routes use the interim `ALLOW_CLIO_CONNECT` admin gate — replace with Cloudflare Access staff identity, and restore the `conflict_checks.reviewed_by` → `users(id)` FK once real staff identities exist
 
+#### Phase 4 — Identity / Retainer / Payment (RAD-13, started 2026-07-18)
+- [x] Domain: payment state machine (card + EMT flows, PAY-006 gate helper), deterministic pricing engine (PAY-001/002), evaluateGates
+- [x] Services: idempotent orders from frozen snapshots; hosted-checkout payments with signature-verified replay-protected webhooks (PAY-003/004); billing-staff-only EMT confirmation (PAY-005); provider-hosted IDV with mismatch→manual-review + audited overrides (IDV-001..005); immutable retainer versions with hash-bound e-signature evidence (RET-001..005)
+- [x] Routes: consumer checkout/identity/retainer, webhook endpoints (payment + identity), staff EMT-confirm / identity-override / retainer-publish; provisioning now evaluates the full real gate snapshot (lib/gates.ts)
+- [ ] D1 stores + migration 0003 for orders/payments/identity_verifications/retainer_* (rebuild FKs to users/clients like 0002 did; add UNIQUE orders(intake_id)) — Phase 4 records are in-memory until then
+- [ ] Real provider selection (payments, IDV, e-signature) — SRS §16 human decision; fakes only today (DEV-003). New provider = sandbox adapter in packages/integrations behind env switch + Snyk scan
+- [ ] Pricing amounts + EMT instructions text are PLACEHOLDERS (SAC_PRICING / SAC_EMT_INSTRUCTIONS env) — product owner/counsel must set real values before production
+- [ ] Consumer post-submit UI (identity/retainer/payment steps + status) — wizard currently ends at submission; API flows exist but have no screens (full portals are Phase 6 UI-001..006)
+- [ ] Audit-events table exists but no audit store yet — EMT confirmations and identity overrides record actor on the row; wire append-only audit_events in Phase 6 (DATA-004)
+
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
   - Location: `projects/stopallcalls/docs/BUILD_PLAN.md` (open decisions table)

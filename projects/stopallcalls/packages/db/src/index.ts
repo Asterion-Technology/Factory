@@ -14,6 +14,7 @@ export {
   addAgency,
   createOrResumeIntake,
   duplicateAgency,
+  getOwnedIntake,
   removeAgency,
   saveProfile,
   submitIntake,
@@ -62,6 +63,45 @@ export {
   decryptSecret,
   encryptSecret,
 } from './clio-connection';
+export type { OrderRecord, OrderStore } from './orders';
+export { InMemoryOrderStore, createOrderForIntake } from './orders';
+export type {
+  HostedCheckoutProvider,
+  PaymentRecord,
+  PaymentStore,
+  WebhookVerifier,
+} from './payments';
+export {
+  InMemoryPaymentStore,
+  applyPaymentWebhook,
+  confirmEmtPayment,
+  paymentGateFromRecords,
+  startEmtPayment,
+  startHostedPayment,
+} from './payments';
+export type { IdentityRecord, IdentityRecordStatus, IdentitySessionProvider, IdentityStore } from './identity';
+export {
+  InMemoryIdentityStore,
+  applyIdentityWebhook,
+  identityGateFromRecord,
+  recordIdentityOverride,
+  startIdentityVerification,
+} from './identity';
+export type {
+  RetainerSignatureRecord,
+  RetainerSignatureStore,
+  RetainerVersionRecord,
+  RetainerVersionStore,
+  SignatureProvider,
+} from './retainer';
+export {
+  InMemoryRetainerSignatureStore,
+  InMemoryRetainerVersionStore,
+  completeRetainerSignature,
+  publishRetainerVersion,
+  requestRetainerSignature,
+  retainerGateFromRecord,
+} from './retainer';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,
