@@ -112,7 +112,8 @@
 - [x] Domain: payment state machine (card + EMT flows, PAY-006 gate helper), deterministic pricing engine (PAY-001/002), evaluateGates
 - [x] Services: idempotent orders from frozen snapshots; hosted-checkout payments with signature-verified replay-protected webhooks (PAY-003/004); billing-staff-only EMT confirmation (PAY-005); provider-hosted IDV with mismatch→manual-review + audited overrides (IDV-001..005); immutable retainer versions with hash-bound e-signature evidence (RET-001..005)
 - [x] Routes: consumer checkout/identity/retainer, webhook endpoints (payment + identity), staff EMT-confirm / identity-override / retainer-publish; provisioning now evaluates the full real gate snapshot (lib/gates.ts)
-- [ ] D1 stores + migration 0003 for orders/payments/identity_verifications/retainer_* (rebuild FKs to users/clients like 0002 did; add UNIQUE orders(intake_id)) — Phase 4 records are in-memory until then
+- [x] D1 stores + migration 0003 (2026-07-18, commit 1cc4294): orders/payments/identity_verifications/retainer_* persisted, FKs relaxed like 0002, UNIQUE orders(intake_id), provider-ref unique indexes; 5 real-D1 contract tests
+- [ ] HUMAN-GATED: apply migrations 0002 + 0003 to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy
 - [ ] Real provider selection (payments, IDV, e-signature) — SRS §16 human decision; fakes only today (DEV-003). New provider = sandbox adapter in packages/integrations behind env switch + Snyk scan
 - [ ] Pricing amounts + EMT instructions text are PLACEHOLDERS (SAC_PRICING / SAC_EMT_INSTRUCTIONS env) — product owner/counsel must set real values before production
 - [ ] Consumer post-submit UI (identity/retainer/payment steps + status) — wizard currently ends at submission; API flows exist but have no screens (full portals are Phase 6 UI-001..006)
