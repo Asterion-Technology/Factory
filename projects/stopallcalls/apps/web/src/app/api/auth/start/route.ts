@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
         await email.send({
           idempotencyKey: crypto.randomUUID(),
           to,
-          from: 'no-reply@stopallcalls.test',
-          subject: 'Your StopAllCalls verification code',
+          from: process.env.SAC_MAIL_FROM ?? 'no-reply@stopallcalls.test',
+          subject: 'Your Stops All Calls verification code',
           text: `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, ignore this email.`,
         });
         recordDevCode(to, code);

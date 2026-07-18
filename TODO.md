@@ -65,12 +65,24 @@
   - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
 - [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
  
+#### RAD-17 market pivot — deferred owner decisions + ops queue (2026-07-18)
+- [ ] Tax treatment for CA launch: per-province GST/HST/QST vs flat vs Stripe Tax — needs accountant (RAD-17 Q1)
+- [ ] Flat-fee trust-accounting structure under LSO rules (RAD-17 Q2)
+- [ ] Quebec at launch vs fast-follow after FR content approval (RAD-17 Q3)
+- [ ] Clio app is on the US instance (app.clio.com) — confirm correct for the firm's account post-pivot (RAD-17 Q6)
+- [ ] RAD-18 remaining after adapter merge: create/verify stopsallcalls.com in Resend (account decision: shared Factory vs dedicated firm account), add SPF/DKIM/DMARC to the Cloudflare zone (blocked on zone-scoped token in .devcontainer/.env), wrangler secret put RESEND_API_KEY + SAC_MAIL_FROM var (human-gated), then retire SAC_E2E_EXPOSE_CODES from deployed config
+- [ ] Verify zone-scoped Cloudflare token (read-only zone check) once owner adds CLOUDFLARE_ZONE_API_TOKEN
+- [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
+- [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
+- [ ] Linear hygiene: rename/archive the stale interim team 'radical-disruption' (RAD-1..9, project 'Cease and Dissist') in the asterion1971 workspace — owner approval before archiving
+- [ ] AST-215: Factory main CI npm-ci workspace-glob failure — still red on one workflow per merge
+
 #### Phase 1 remaining (RAD-3, formerly AST-169)
 - [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
 - [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
 - [x] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion) — 10 passing (`e2e/intake.spec.ts`)
 - [ ] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx`
-- [ ] Real email provider adapter for verification codes — `FakeEmailAdapter` is dev-only; wire Resend (or chosen provider) behind `EmailAdapter` at provisioning
+- [x] Real email provider adapter for verification codes — ResendEmailAdapter landed (RAD-18, 2026-07-18), env-switched on `RESEND_API_KEY`; sending-domain DNS + secret put remain human-gated (see RAD-18 section below)
 - [ ] Durable rate limiting — `SlidingWindowRateLimiter` is per-instance in-memory; move to Durable Object or D1 counters at provisioning
 - [ ] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned
 - [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
