@@ -3,6 +3,12 @@
 ## [Unreleased] — 2026-07-18
 
 ### Changed
+- Merge pull request #13 from Asterion-Technology/feature/RAD-15-operations
+
+
+## [Unreleased] — 2026-07-18
+
+### Changed
 - Merge pull request #12 from Asterion-Technology/feature/RAD-6-identity-retainer-payment
 
 
