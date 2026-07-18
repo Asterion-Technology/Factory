@@ -150,7 +150,7 @@ pinned SHA noted in the skill's own file without a re-review.
 | Preview or test email templates | `factory-resend` |
 | Inspect R2 objects or buckets | `factory-r2` |
 | Control preview deployments | `factory-railway` |
-| UI/UX tooling and AI API execution | `factory-magic21` |
+| AI UI component generation (21st.dev Magic) | `magic` |
 
 ---
 

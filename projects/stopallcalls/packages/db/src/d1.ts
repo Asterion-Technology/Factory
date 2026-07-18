@@ -1,4 +1,11 @@
 import type { AuthChallenge, AuthStore, ConsumerSession } from './auth';
+import type {
+  ClioMappingStore,
+  ConflictCheckRecord,
+  ConflictCheckStore,
+  MatterRecord,
+  MatterStore,
+} from './clio';
 import type { EvidenceRecord, EvidenceStore } from './evidence';
 import type { IntakeRecord, IntakeStore } from './types';
 
@@ -276,6 +283,189 @@ export class D1EvidenceStore implements EvidenceStore {
          WHERE id = ?`,
       )
       .bind(record.sha256, record.scanStatus, JSON.stringify(record.custody), record.updatedAt, record.id)
+      .run();
+  }
+}
+
+interface ConflictCheckRow {
+  id: string;
+  intake_id: string;
+  search_package_json: string;
+  clio_query_refs_json: string | null;
+  disposition: string | null;
+  reviewed_by: string | null;
+  rationale: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+const toConflictCheck = (row: ConflictCheckRow): ConflictCheckRecord => ({
+  id: row.id,
+  intakeId: row.intake_id,
+  terms: JSON.parse(row.search_package_json),
+  hits: row.clio_query_refs_json ? JSON.parse(row.clio_query_refs_json) : [],
+  disposition: row.disposition as ConflictCheckRecord['disposition'],
+  reviewedBy: row.reviewed_by,
+  rationale: row.rationale,
+  reviewedAt: row.reviewed_at,
+  createdAt: row.created_at,
+});
+
+export class D1ConflictCheckStore implements ConflictCheckStore {
+  constructor(private readonly db: D1Like) {}
+
+  async insert(record: ConflictCheckRecord): Promise<void> {
+    await this.db
+      .prepare(
+        `INSERT INTO conflict_checks (id, intake_id, search_package_json, clio_query_refs_json,
+           disposition, reviewed_by, rationale, reviewed_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        record.id,
+        record.intakeId,
+        JSON.stringify(record.terms),
+        JSON.stringify(record.hits),
+        record.disposition,
+        record.reviewedBy,
+        record.rationale,
+        record.reviewedAt,
+        record.createdAt,
+      )
+      .run();
+  }
+
+  async getById(id: string): Promise<ConflictCheckRecord | null> {
+    const row = await this.db.prepare('SELECT * FROM conflict_checks WHERE id = ?').bind(id).first<ConflictCheckRow>();
+    return row ? toConflictCheck(row) : null;
+  }
+
+  async getByIntake(intakeId: string): Promise<ConflictCheckRecord | null> {
+    const row = await this.db
+      .prepare('SELECT * FROM conflict_checks WHERE intake_id = ? ORDER BY created_at LIMIT 1')
+      .bind(intakeId)
+      .first<ConflictCheckRow>();
+    return row ? toConflictCheck(row) : null;
+  }
+
+  async update(record: ConflictCheckRecord): Promise<void> {
+    await this.db
+      .prepare('UPDATE conflict_checks SET disposition = ?, reviewed_by = ?, rationale = ?, reviewed_at = ? WHERE id = ?')
+      .bind(record.disposition, record.reviewedBy, record.rationale, record.reviewedAt, record.id)
+      .run();
+  }
+}
+
+interface MatterRow {
+  id: string;
+  intake_id: string;
+  agency_id: string;
+  clio_matter_id: string | null;
+  display_number: string | null;
+  state: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const toMatter = (row: MatterRow): MatterRecord => ({
+  id: row.id,
+  intakeId: row.intake_id,
+  agencyId: row.agency_id,
+  clioMatterId: row.clio_matter_id ?? '',
+  displayNumber: row.display_number ?? '',
+  state: row.state as MatterRecord['state'],
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export class D1MatterStore implements MatterStore {
+  constructor(private readonly db: D1Like) {}
+
+  async getById(id: string): Promise<MatterRecord | null> {
+    const row = await this.db.prepare('SELECT * FROM matters WHERE id = ?').bind(id).first<MatterRow>();
+    return row ? toMatter(row) : null;
+  }
+
+  async update(record: MatterRecord): Promise<void> {
+    await this.db
+      .prepare('UPDATE matters SET state = ?, updated_at = ? WHERE id = ?')
+      .bind(record.state, record.updatedAt, record.id)
+      .run();
+  }
+
+  async insert(record: MatterRecord): Promise<void> {
+    await this.db
+      .prepare(
+        `INSERT INTO matters (id, intake_id, agency_id, clio_matter_id, display_number, state,
+           created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        record.id,
+        record.intakeId,
+        record.agencyId,
+        record.clioMatterId,
+        record.displayNumber,
+        record.state,
+        record.createdAt,
+        record.updatedAt,
+      )
+      .run();
+  }
+
+  async listByIntake(intakeId: string): Promise<MatterRecord[]> {
+    const { results } = await this.db
+      .prepare('SELECT * FROM matters WHERE intake_id = ? ORDER BY created_at')
+      .bind(intakeId)
+      .all<MatterRow>();
+    return results.map(toMatter);
+  }
+}
+
+interface MappingRow {
+  clio_id: string;
+  display_number: string | null;
+}
+
+export class D1ClioMappingStore implements ClioMappingStore {
+  constructor(private readonly db: D1Like) {}
+
+  async get(idempotencyKey: string): Promise<{ clioId: string; displayNumber?: string } | null> {
+    const row = await this.db
+      .prepare('SELECT clio_id, display_number FROM clio_mappings WHERE idempotency_key = ?')
+      .bind(idempotencyKey)
+      .first<MappingRow>();
+    if (!row) return null;
+    return { clioId: row.clio_id, ...(row.display_number ? { displayNumber: row.display_number } : {}) };
+  }
+
+  async insert(entry: {
+    idempotencyKey: string;
+    localEntity: string;
+    localId: string;
+    clioId: string;
+    displayNumber?: string;
+  }): Promise<void> {
+    const at = new Date().toISOString();
+    // Ledger semantics (DATA-005/CLIO-008): the first write for a key wins;
+    // a concurrent retry hitting the UNIQUE constraints is a no-op, never an error.
+    await this.db
+      .prepare(
+        `INSERT OR IGNORE INTO clio_mappings (id, local_entity, local_id, clio_resource, clio_id,
+           idempotency_key, display_number, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        entry.localEntity,
+        entry.localId,
+        entry.localEntity === 'matter' ? 'matter' : 'contact',
+        entry.clioId,
+        entry.idempotencyKey,
+        entry.displayNumber ?? null,
+        at,
+        at,
+      )
       .run();
   }
 }

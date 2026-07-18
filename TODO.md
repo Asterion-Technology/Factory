@@ -92,11 +92,43 @@
 - [ ] Mint a dedicated R2-scoped API token for runtime presigning (current dev signing pair derives from the broad provisioning token — works, but not least-privilege)
 - [x] Symlink blocker solved in-repo (2026-07-16): `nodeLinker: hoisted` in `pnpm-workspace.yaml` — flat node_modules, no symlinks, so Next standalone tracing works with Developer Mode off on any machine. `build:cf` ✅ and `wrangler deploy --dry-run` ✅ (all bindings resolve; 901 KB gzip); full suite re-verified under the hoisted layout. NOTE: after changing nodeLinker, delete ALL node_modules (root + every package) before `pnpm install` — stale per-package bin shims break vitest otherwise
 - [x] DEPLOYED (2026-07-16, human-approved): https://stopallcalls-web-dev.rick-044.workers.dev — version 356f0485; workers.dev hostname added to the Turnstile widget domains. Smoke-verified: landing 200; server-side Turnstile enforcement live (fake token → 403 from real siteverify); D1 read path live (bogus session cookie → clean `{email:null}`); real widget renders and correctly challenges headless automation (full-journey automation blocked BY the bot protection — by design)
-- [ ] Human click-through of the live dev site pending: the wizard now shows the login code on-screen (dev mode); auth → profile → agencies verified live by the user 2026-07-17; upload was CORS-blocked, fixed by setting the R2 CORS policy on `stopallcalls-evidence-dev` (allowed origin = the workers.dev host, PUT, content-type) — retry upload → submit to finish
+- [x] LIVE END-TO-END VERIFIED by human click-through (2026-07-17): full journey on the deployed dev site — Turnstile challenge, on-screen dev code, D1 session/profile/agencies, R2 presigned upload (after CORS fix), scan CLEAN with sha256, SUBMITTED with immutable snapshot (intake 85112088…)
 - [ ] When staging/prod origins exist: add them to the R2 bucket CORS rule (and the Turnstile widget domains) — both are per-hostname allowlists
 - [ ] Scan via `stopallcalls-jobs-dev` queue consumer instead of inline (interface `FinalizeDeps` unchanged); real malware scanning service selection pending
 - [ ] Staff evidence-review workspace + sufficiency rule (EVD-009/EVD-010) and credit-report handling (EVD-008) — needs Cloudflare Access (staff SSO) first
 - [ ] Attestation-only path (no uploads) flagged for lawyer review — SRS gate alternative, needs product-owner wording
+
+#### Phase 3 — Conflict + Clio (RAD-12, started 2026-07-17)
+- [x] Clio OAuth connect flow (encrypted tokens, state CSRF, interim admin gate), status probe, real v4 ClioAdapter with auto-refresh token provider; full-pipeline write test passed against the real Clio tenant (2026-07-17)
+- [x] Phase 3 core: conflict-search package → human-only disposition → gate-checked idempotent provisioning, with in-memory retry tests proving no duplicate contacts/matters (2026-07-17)
+- [x] D1 persistence (2026-07-18): `D1ConflictCheckStore`/`D1MatterStore`/`D1ClioMappingStore` + `migrations/0002_clio_persistence.sql` (adds display_number columns; drops matters→agencies FK since agencies live in the snapshot JSON; conflict reviewed_by is TEXT until staff SSO); exit-criterion retry tests re-proven against real D1 (`test-workers/d1-stores.test.ts`)
+- [x] Submit-flow wiring (2026-07-18): conflict check auto-runs on intake submission (best-effort, idempotent, consumer never sees it — WF-006); staff API `GET/POST /api/staff/intakes/:id/conflict`, `POST …/conflict/disposition`, `POST …/provision` (provision evaluates the REAL gate snapshot, so it stays blocked until Phase 4 gates exist)
+- [ ] HUMAN-GATED: apply `0002_clio_persistence.sql` to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy
+- [ ] Config-driven Clio custom-field mappings validated at startup (CLIO-007)
+- [ ] Retry queue + staff resolution for permanent Clio failures (CLIO-008/CLIO-009) — needs the `stopallcalls-jobs-dev` consumer (still a Phase 0 stub); move the post-submit conflict check there too
+- [ ] Staff conflict routes use the interim `ALLOW_CLIO_CONNECT` admin gate — replace with Cloudflare Access staff identity, and restore the `conflict_checks.reviewed_by` → `users(id)` FK once real staff identities exist
+
+#### Phase 4 — Identity / Retainer / Payment (RAD-13, started 2026-07-18)
+- [x] Domain: payment state machine (card + EMT flows, PAY-006 gate helper), deterministic pricing engine (PAY-001/002), evaluateGates
+- [x] Services: idempotent orders from frozen snapshots; hosted-checkout payments with signature-verified replay-protected webhooks (PAY-003/004); billing-staff-only EMT confirmation (PAY-005); provider-hosted IDV with mismatch→manual-review + audited overrides (IDV-001..005); immutable retainer versions with hash-bound e-signature evidence (RET-001..005)
+- [x] Routes: consumer checkout/identity/retainer, webhook endpoints (payment + identity), staff EMT-confirm / identity-override / retainer-publish; provisioning now evaluates the full real gate snapshot (lib/gates.ts)
+- [x] D1 stores + migration 0003 (2026-07-18, commit 1cc4294): orders/payments/identity_verifications/retainer_* persisted, FKs relaxed like 0002, UNIQUE orders(intake_id), provider-ref unique indexes; 5 real-D1 contract tests
+- [ ] HUMAN-GATED: apply migrations 0002 + 0003 to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy
+- [ ] Real provider selection (payments, IDV, e-signature) — SRS §16 human decision; fakes only today (DEV-003). New provider = sandbox adapter in packages/integrations behind env switch + Snyk scan
+- [ ] Pricing amounts + EMT instructions text are PLACEHOLDERS (SAC_PRICING / SAC_EMT_INSTRUCTIONS env) — product owner/counsel must set real values before production
+- [ ] Consumer post-submit UI (identity/retainer/payment steps + status) — wizard currently ends at submission; API flows exist but have no screens (full portals are Phase 6 UI-001..006)
+- [ ] Audit-events table exists but no audit store yet — EMT confirmations and identity overrides record actor on the row; wire append-only audit_events in Phase 6 (DATA-004)
+
+#### Phase 5 — Letters (RAD-14, started 2026-07-18)
+- [x] Deterministic letter engine (domain): strict placeholder templates from verified structured fields only, versioned generator (LTR-001/002); letter versions record template version, input snapshot, generator version, PDF hash (LTR-005)
+- [x] Hash-bound lawyer-only approval (LTR-006..008 / WF-005): approve/reject binds to the exact content hash reviewed; regeneration supersedes and reverts APPROVED matters to IN_REVIEW; stale approvals can never authorize a send
+- [x] Delivery (DLV-001..007): exactly-once send (idempotency-keyed, re-verifies approval + ALL gates at send time), sent copy uploaded to the Clio matter, bounce → matter BOUNCED + follow-up task; RealClioAdapter.uploadDocument implemented (v4 three-step flow)
+- [x] Staff routes: template publish, letter generate/review payload (content + prior-version diff source + gates), submit-for-review, decision, send; email delivery webhook (shared-secret, fails closed)
+- [ ] D1 stores + migration 0004 for letter_templates/letter_versions/approvals/deliveries/tasks — Phase 5 records are in-memory
+- [ ] Real letter template text + PDF rendering are placeholders: template body needs counsel-approved wording; FakePdfAdapter needs a real PDF engine; rendered PDFs should persist to R2 (documents bucket)
+- [ ] Live-verify Clio document upload against the real tenant (human-approved write test, like Phase 3's)
+- [ ] Email webhook uses a shared-secret header — replace with the real provider's signature scheme (e.g. Resend/svix) when the email provider lands
+- [ ] Follow-up scheduling beyond bounce tasks (DLV-007 full: N-day no-response follow-ups) — needs the jobs queue consumer
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
@@ -104,6 +136,15 @@
   - Suggested fix: Review with qualified counsel; record each decision as configuration, not code
 
 #### Factory Infrastructure (found during this build)
+- [x] Infisical self-hosted stood up (2026-07-18): `infisical/docker-compose.yml` (Postgres+Redis+server on :8085), instance bootstrapped via admin API, project `factory` (id in `.infisical.json`), 25 dev-tooling secrets migrated from machine env vars; `infisical run` injection verified. Admin creds + machine identity token in gitignored `infisical/.env.admin.local`
+- [x] All 28 dev-tooling secrets in Infisical (2026-07-18) incl. TWENTYFIRST_API_KEY / SLACK_BOT_TOKEN / SLACK_TEAM_ID; `scripts/code-with-secrets.ps1` launches VS Code with vault-injected env (verified — 28 vars reach child processes)
+- [ ] Cut over: use `scripts/code-with-secrets.ps1` as the VS Code launcher for a few sessions, then delete the `setx` machine env vars (incl. dead `MAGIC21_API_KEY`) so the vault is the single source of truth
+- [ ] Back up `infisical/.env` ENCRYPTION_KEY somewhere safe — losing it makes the Infisical DB unrecoverable
+- [ ] Finish the 21st.dev Magic swap (2026-07-18): the old `factory-magic21` MCP wrapper pointed at `api.magic21.ai` — a domain that has never existed — so it never worked; replaced with the official `@21st-dev/magic` package in `.mcp.json` and wrapper deleted
+  - Location: `.mcp.json` (`magic` server)
+  - Suggested fix: Get an API key from the 21st.dev Magic console, `setx TWENTYFIRST_API_KEY "<key>"`, reload VS Code; the stale `MAGIC21_API_KEY` env var can be deleted
+- [ ] factory-r2 MCP credentials stale ("SignatureDoesNotMatch") — rotate the R2 API token pair (`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`) in the Cloudflare dashboard for account c35ddd6d…
+- [ ] factory-litellm healthcheck fixed to `/health/liveliness` in `ai/docker-compose.yml` + `config/docker-compose.yml` (was curling the auth-gated `/health`, so the container always showed unhealthy) — needs `docker compose -f ai/docker-compose.yml up -d` to apply; also consider consolidating the duplicate litellm compose files
 - [ ] `config/repos.yaml` declares `base: "d:/REPO"` but Haven's `local_path` is an absolute `C:/Users/RDM71/REPO/Haven` — cross-drive inconsistency if tooling resolves paths against `base`
   - Location: `config/repos.yaml`
   - Suggested fix: Support absolute-path overrides explicitly in `scripts/resolve-repo.sh` docs, or normalize the manifest

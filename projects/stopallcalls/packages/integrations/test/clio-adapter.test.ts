@@ -60,11 +60,50 @@ describe('RealClioAdapter', () => {
     expect(matter).toEqual({ clioId: '99', displayNumber: '00003-Testcase' });
   });
 
-  it('throws status-only errors and refuses document upload until Phase 5', async () => {
+  it('throws status-only errors (no Clio response bodies in messages)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429 }) as Response));
     await expect(adapter().searchContacts('x')).rejects.toThrow('429');
-    await expect(
-      adapter().uploadDocument({ idempotencyKey: 'k', matterClioId: '1', filename: 'f.pdf', bytes: new Uint8Array() }),
-    ).rejects.toThrow('Phase 5');
+  });
+
+  it('uploads documents via the v4 three-step flow (create, PUT, mark uploaded)', async () => {
+    const fetchMock = vi
+      .fn()
+      // 1) create document shell → presigned put target
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          data: {
+            id: 555,
+            latest_document_version: {
+              uuid: 'ver-uuid-1',
+              put_url: 'https://uploads.clio.example/put/ver-uuid-1',
+              put_headers: [{ name: 'Content-MD5', value: 'abc' }],
+            },
+          },
+        }),
+      })
+      // 2) PUT bytes to the presigned URL
+      .mockResolvedValueOnce({ ok: true, status: 200 })
+      // 3) PATCH fully_uploaded
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { id: 555 } }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await adapter().uploadDocument({
+      idempotencyKey: 'k',
+      matterClioId: '42',
+      filename: 'cease-and-desist-FAKE-00001.txt',
+      bytes: new TextEncoder().encode('letter body'),
+    });
+    expect(result).toEqual({ clioDocumentId: '555' });
+
+    const createBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+    expect(createBody.data.parent).toEqual({ id: 42, type: 'Matter' });
+    const [putUrl, putInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(putUrl).toBe('https://uploads.clio.example/put/ver-uuid-1');
+    expect(putInit.method).toBe('PUT');
+    expect((putInit.headers as Record<string, string>)['Content-MD5']).toBe('abc');
+    const patchBody = JSON.parse((fetchMock.mock.calls[2]![1] as RequestInit).body as string);
+    expect(patchBody.data).toEqual({ uuid: 'ver-uuid-1', fully_uploaded: true });
   });
 });

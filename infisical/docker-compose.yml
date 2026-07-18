@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: factory-infisical-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: infisical
+      POSTGRES_PASSWORD: ${INFISICAL_DB_PASSWORD:?set in infisical/.env}
+      POSTGRES_DB: infisical
+    volumes:
+      - infisical-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U infisical"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: factory-infisical-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-migration:
+    image: infisical/infisical:latest
+    container_name: factory-infisical-migration
+    env_file: .env
+    command: npm run migration:latest
+    depends_on:
+      db:
+        condition: service_healthy
+
+  infisical:
+    image: infisical/infisical:latest
+    container_name: factory-infisical
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8085:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      db-migration:
+        condition: service_completed_successfully
+
+volumes:
+  infisical-pg:
+    driver: local

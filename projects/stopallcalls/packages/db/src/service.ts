@@ -26,6 +26,14 @@ export class ServiceError extends Error {
 const now = (): string => new Date().toISOString();
 
 // IDOR guard: a missing intake and someone else's intake are indistinguishable.
+export async function getOwnedIntake(
+  store: IntakeStore,
+  consumerKey: string,
+  intakeId: string,
+): Promise<IntakeRecord> {
+  return getOwned(store, consumerKey, intakeId);
+}
+
 async function getOwned(store: IntakeStore, consumerKey: string, intakeId: string): Promise<IntakeRecord> {
   const record = await store.getById(intakeId);
   if (!record || record.consumerKey !== consumerKey) {
