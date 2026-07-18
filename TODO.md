@@ -124,11 +124,27 @@
 - [x] Hash-bound lawyer-only approval (LTR-006..008 / WF-005): approve/reject binds to the exact content hash reviewed; regeneration supersedes and reverts APPROVED matters to IN_REVIEW; stale approvals can never authorize a send
 - [x] Delivery (DLV-001..007): exactly-once send (idempotency-keyed, re-verifies approval + ALL gates at send time), sent copy uploaded to the Clio matter, bounce → matter BOUNCED + follow-up task; RealClioAdapter.uploadDocument implemented (v4 three-step flow)
 - [x] Staff routes: template publish, letter generate/review payload (content + prior-version diff source + gates), submit-for-review, decision, send; email delivery webhook (shared-secret, fails closed)
-- [ ] D1 stores + migration 0004 for letter_templates/letter_versions/approvals/deliveries/tasks — Phase 5 records are in-memory
+- [x] D1 stores + migration 0004 (2026-07-18): letter templates (inline body), versions (+template_version), approvals (staff TEXT ids), deliveries, tasks all persisted; full-pipeline D1 test (template→generate→approve→send-once→bounce)
 - [ ] Real letter template text + PDF rendering are placeholders: template body needs counsel-approved wording; FakePdfAdapter needs a real PDF engine; rendered PDFs should persist to R2 (documents bucket)
 - [ ] Live-verify Clio document upload against the real tenant (human-approved write test, like Phase 3's)
 - [ ] Email webhook uses a shared-secret header — replace with the real provider's signature scheme (e.g. Resend/svix) when the email provider lands
 - [ ] Follow-up scheduling beyond bounce tasks (DLV-007 full: N-day no-response follow-ups) — needs the jobs queue consumer
+
+#### Phase 6 — Operations (RAD-15, started 2026-07-18)
+- [x] Append-only tamper-evident audit trail (DATA-004): hash-chained events (each hash covers content + previous hash), no update/delete path by construction, chain verification detecting edit/deletion/reordering/forgery; D1AuditStore on the baseline audit_events table (no migration needed); wired into conflict disposition, EMT confirm, identity override, letter decision, letter send; staff GET /api/staff/audit with live chain verdict
+- [x] Consumer case-status dashboard (UI-001): /status tracker — 7 steps with complete/active/pending/attention states, live actions (identity session, retainer sign + confirm, card checkout, e-Transfer instructions), consumer-safe aggregate endpoint (conflict data never exposed, WF-006); E2E-covered mobile+desktop
+- [ ] Staff portal screens (UI-002..006, master client view) — staff APIs exist; screens unbuilt (need Cloudflare Access first for real auth)
+- [ ] Magic (21st.dev) MCP returns malformed payloads on both builder and inspiration tools ([object Object] / invalid MCP content) — upstream wrapper bug; component was hand-built this time. Re-test after their next release
+- [x] DB-backed ops summary (2026-07-18): GET /api/staff/ops — intake/evidence/identity/payment/delivery/task/letter counts from D1, counts only never PII (OPS-004/005); follow-up reconciliation cron already running (OPS-007)
+- [ ] Remaining ops signals need Cloudflare surfaces: queue depth + dead letters (Queues API), request errors/provider latency (Workers observability), push alerts + runbooks (OPS-005/006)
+- [x] Audit export (2026-07-18): GET /api/staff/audit/export — NDJSON with a manifest line carrying the live chain verdict (SEC-011/014)
+- [ ] Retention/deletion workflows (SEC-015) — retention periods are an SRS §16 counsel decision; implement once policy is set
+- [x] Jobs worker is real (2026-07-18): typed queue consumer (zod-validated envelope, malformed→ack, errors→retry→DLQ) + daily cron running the idempotent follow-up sweep (DELIVERED + 14d + no response → FOLLOW_UP_DUE + task, DLV-007/OPS-007). Deploy of the jobs worker is human-gated and still pending
+- [ ] Move evidence scanning + post-submit conflict checks onto the queue (message shapes already defined in contracts/jobs.ts); Phase 2 invitation flow (DLV-008) still open
+- [x] Security review pass over Phase 6 branch (2026-07-18): adversarial two-stage review (finder + false-positive filter) — no reportable vulnerabilities; SQL parameterization, IDOR guards, WF-006/IDV-002 leakage rules, XSS, PII hygiene, queue surface all verified clean. Full-app TST-005 matrix + WCAG 2.2 AA (TST-006) still due at production-readiness signoff
+- [ ] Audit-chain hardening (from security review): anchor the latest eventHash + count outside D1 write scope (WORM R2 object or observability line) and have verifyAuditChain compare against the anchor; optionally HMAC the chain. Until then the verdict detects app-layer tampering only
+- [ ] appendAuditEvent is non-atomic (getLast then append): concurrent staff actions can fork the chain, causing a FALSE tamper alarm (availability nuisance, not a bypass) — serialize appends (Durable Object or retry-on-fork)
+- [ ] Full security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture

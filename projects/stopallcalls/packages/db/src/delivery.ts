@@ -29,6 +29,7 @@ export interface DeliveryStore {
   getByIdempotencyKey(key: string): Promise<DeliveryRecord | null>;
   getByProviderMessageId(messageId: string): Promise<DeliveryRecord | null>;
   listByMatter(matterId: string): Promise<DeliveryRecord[]>;
+  listByStatus(statuses: DeliveryRecord['status'][]): Promise<DeliveryRecord[]>;
   update(record: DeliveryRecord): Promise<void>;
 }
 
@@ -61,6 +62,12 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   async listByMatter(matterId: string): Promise<DeliveryRecord[]> {
     return [...this.byId.values()]
       .filter((d) => d.matterId === matterId)
+      .map((d) => structuredClone(d));
+  }
+
+  async listByStatus(statuses: DeliveryRecord['status'][]): Promise<DeliveryRecord[]> {
+    return [...this.byId.values()]
+      .filter((d) => statuses.includes(d.status))
       .map((d) => structuredClone(d));
   }
 

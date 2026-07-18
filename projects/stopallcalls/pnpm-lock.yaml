@@ -137,6 +137,16 @@ importers:
         version: 5.9.3
 
   workers/jobs:
+    dependencies:
+      '@stopallcalls/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@stopallcalls/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@stopallcalls/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250110.0

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { identityOverrideRequestSchema } from '@stopallcalls/contracts';
 import { recordIdentityOverride } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
+import { recordAudit } from '@/lib/audit';
 import { clioConnectEnabled } from '@/lib/clio';
 import { getIdentityStore } from '@/lib/store';
 
@@ -15,6 +16,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const record = await getIdentityStore().getByIntake(id);
     if (!record) return jsonError(404, 'NOT_FOUND', 'No verification exists for this intake.');
     const overridden = await recordIdentityOverride(getIdentityStore(), record.id, body);
+    await recordAudit({
+      actorId: body.overriddenBy,
+      actorType: 'STAFF',
+      action: 'IDENTITY_OVERRIDE_RECORDED',
+      entity: 'identity_verification',
+      entityId: overridden.id,
+    });
     return jsonOk({
       verification: {
         id: overridden.id,

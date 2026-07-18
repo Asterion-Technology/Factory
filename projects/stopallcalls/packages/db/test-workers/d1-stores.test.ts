@@ -368,6 +368,131 @@ describe('D1 Phase 4 stores (RAD-13)', () => {
   });
 });
 
+describe('D1 letter pipeline (RAD-14, migration 0004)', () => {
+  it('template → generate → approve → send exactly once → delivery event, all persisted', async () => {
+    const { D1LetterTemplateStore, D1LetterVersionStore, D1ApprovalStore, D1DeliveryStore, D1TaskStore } =
+      await import('../src/d1-phase5');
+    const { publishLetterTemplate, generateLetterVersion, submitLetterForReview, decideLetterApproval } =
+      await import('../src/letters');
+    const { sendApprovedLetter, recordDeliveryEvent } = await import('../src/delivery');
+    const { FakeEmailAdapter, FakePdfAdapter } = await import('@stopallcalls/integrations');
+
+    const matters = new D1MatterStore(env.DB);
+    const deps = {
+      templates: new D1LetterTemplateStore(env.DB),
+      versions: new D1LetterVersionStore(env.DB),
+      matters,
+      pdf: new FakePdfAdapter(),
+      approvals: new D1ApprovalStore(env.DB),
+      deliveries: new D1DeliveryStore(env.DB),
+      tasks: new D1TaskStore(env.DB),
+      email: new FakeEmailAdapter(),
+    };
+    const intake = await submittedD1Intake(['ABC Collections (Fictitious)']);
+    const matter = {
+      id: crypto.randomUUID(),
+      intakeId: intake.id,
+      agencyId: intake.submittedSnapshot!.agencies[0]!.id,
+      clioMatterId: 'clio-1',
+      displayNumber: 'FAKE-D1-1',
+      state: 'MATTER_CREATED' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await matters.insert(matter);
+
+    const uniqueVersion = Math.floor(Math.random() * 1_000_000) + 2;
+    await publishLetterTemplate(deps.templates, {
+      jurisdiction: 'CA',
+      version: uniqueVersion,
+      body: 'To {{agencyName}} re {{matterNumber}}: on behalf of {{consumerName}}, cease contact. {{letterDate}}',
+    });
+    const v1 = await generateLetterVersion(deps, intake, matter.id, { author: 'staff-1', letterDate: '2026-07-18' });
+    expect(v1.templateVersion).toBe(uniqueVersion);
+    await submitLetterForReview(deps, v1.id);
+    await decideLetterApproval(deps, v1.id, {
+      actor: { id: 'lawyer-1', role: 'LAWYER' },
+      contentHash: v1.contentHash,
+      decision: 'APPROVED',
+    });
+    const send = {
+      letterVersionId: v1.id,
+      recipient: 'agency-contact@example.test',
+      senderAddress: 'letters@firm.example.test',
+      gates: ALL_PASSED,
+    };
+    const first = await sendApprovedLetter(deps, send);
+    const retry = await sendApprovedLetter(deps, send);
+    expect(retry.id).toBe(first.id);
+    expect(deps.email.sent).toHaveLength(1);
+    expect((await deps.deliveries.getByIdempotencyKey(first.idempotencyKey))?.status).toBe('SENT');
+
+    await recordDeliveryEvent(deps, { providerMessageId: first.providerMessageId!, status: 'BOUNCED' });
+    expect((await matters.getById(matter.id))?.state).toBe('BOUNCED');
+    expect(await deps.tasks.listByMatter(matter.id)).toHaveLength(1);
+  });
+});
+
+describe('collectOpsMetrics (OPS-004)', () => {
+  it('aggregates counts across the live schema without PII', async () => {
+    const { collectOpsMetrics } = await import('../src/ops');
+    const { D1OrderStore, D1PaymentStore } = await import('../src/d1-phase4');
+    const { D1TaskStore } = await import('../src/d1-phase5');
+
+    // Self-seeded: the workers pool isolates storage per test.
+    const intake = await submittedD1Intake(['Ops Metrics Agency (Fictitious)']);
+    const orders = new D1OrderStore(env.DB);
+    const payments = new D1PaymentStore(env.DB);
+    const order = await createOrderForIntake(orders, PRICING, intake);
+    const payment = await startEmtPayment(payments, order);
+    await confirmEmtPayment(payments, payment.id, { id: 'billing-1', role: 'BILLING' });
+    await new D1TaskStore(env.DB).insert({
+      id: crypto.randomUUID(),
+      matterId: null,
+      intakeId: intake.id,
+      kind: 'OPS_TEST',
+      status: 'OPEN',
+      dueAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const metrics = await collectOpsMetrics(env.DB);
+    expect(metrics.intakesByState.SUBMITTED).toBeGreaterThan(0);
+    expect(metrics.payments.settled).toBe(1);
+    expect(metrics.payments.awaitingEmt).toBe(0);
+    expect(metrics.tasks.open).toBe(1);
+    // Counts only — the payload carries no identifiers or free text.
+    expect(JSON.stringify(metrics)).not.toMatch(/@example\.test/);
+  });
+});
+
+describe('D1AuditStore (DATA-004)', () => {
+  it('appends, preserves chain order, and the full chain verifies', async () => {
+    const { appendAuditEvent, verifyAuditChain } = await import('../src/audit');
+    const { D1AuditStore } = await import('../src/d1-audit');
+    const store = new D1AuditStore(env.DB);
+    for (let i = 0; i < 3; i++) {
+      await appendAuditEvent(store, {
+        actorId: `staff-${i}`,
+        actorType: 'STAFF',
+        action: 'D1_TEST_ACTION',
+        entity: 'test_entity',
+        entityId: `d1-entity-${i}`,
+      });
+    }
+    const events = await store.list();
+    expect(events.length).toBeGreaterThanOrEqual(3);
+    expect(await verifyAuditChain(events)).toMatchObject({ valid: true });
+    const last = await store.getLast();
+    expect(last?.eventHash).toBe(events.at(-1)?.eventHash);
+    // Limited listing keeps chain order (oldest → newest within the window).
+    const window = await store.list(2);
+    expect(window).toHaveLength(2);
+    expect(window[1]?.eventHash).toBe(last?.eventHash);
+  });
+});
+
 describe('D1EvidenceStore', () => {
   it('round-trips evidence with custody JSON and key lookup', async () => {
     const intakeStore = new D1IntakeStore(env.DB);

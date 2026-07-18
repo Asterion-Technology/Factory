@@ -183,3 +183,100 @@ legend {
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
 }
+
+/* Case-status tracker (UI-001) */
+.tracker {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+}
+
+.tracker-step {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  padding: 0 0 2rem 0;
+}
+
+.tracker-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 0.9375rem;
+  top: 2.25rem;
+  bottom: 0.25rem;
+  width: 2px;
+  background: var(--line);
+}
+
+.tracker-step.complete:not(:last-child)::before {
+  background: var(--accent);
+}
+
+.tracker-marker {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 2px solid var(--line);
+  background: #fff;
+  color: var(--ink-muted);
+}
+
+.tracker-step.complete .tracker-marker {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.tracker-step.active .tracker-marker {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tracker-step.attention .tracker-marker {
+  border-color: #b45309;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.tracker-body h2 {
+  font-size: 1.05rem;
+  margin: 0.2rem 0 0.15rem;
+}
+
+.tracker-body p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.tracker-step.pending .tracker-body {
+  opacity: 0.65;
+}
+
+.tracker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.tracker-actions .cta {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.tracker-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.9rem;
+}

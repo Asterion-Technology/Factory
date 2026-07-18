@@ -143,6 +143,18 @@ test('duplicate prevention: a submitted intake cannot be restarted (INT-007, INT
   // Returning to the wizard shows the submitted state — no second draft.
   await page.goto('/intake');
   await expect(page.getByRole('heading', { name: 'Intake received' })).toBeVisible();
+
+  // UI-001: the case-status dashboard renders the tracker with live actions.
+  await page.getByRole('link', { name: 'Track your case status' }).click();
+  await expect(page.getByRole('heading', { name: 'Your case status' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Application submitted' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Verify your identity' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review & sign' })).toBeVisible();
+  // Choosing e-Transfer creates the server-priced order and shows instructions.
+  await page.getByRole('button', { name: 'Pay by e-Transfer' }).click();
+  await expect(page.getByRole('heading', { name: 'Payment' })).toBeVisible();
+  await expect(page.locator('.tracker-note')).toBeVisible();
+  await expect(page.locator('.tracker-step.attention')).toBeVisible();
 });
 
 test('malicious upload is blocked and discarded (EVD-005)', async ({ page }, testInfo) => {

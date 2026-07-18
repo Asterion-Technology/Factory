@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { conflictDispositionRequestSchema } from '@stopallcalls/contracts';
 import { recordConflictDisposition } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
+import { recordAudit } from '@/lib/audit';
 import { clioConnectEnabled } from '@/lib/clio';
 import { getConflictCheckStore } from '@/lib/store';
 
@@ -17,6 +18,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const check = await store.getByIntake(id);
     if (!check) return jsonError(404, 'NO_CONFLICT_CHECK', 'No conflict check recorded for this intake.');
     const decided = await recordConflictDisposition(store, check.id, body);
+    await recordAudit({
+      actorId: body.reviewedBy,
+      actorType: 'STAFF',
+      action: 'CONFLICT_DISPOSITION_RECORDED',
+      entity: 'conflict_check',
+      entityId: decided.id,
+      detail: { disposition: body.disposition },
+    });
     return jsonOk({ check: decided });
   });
 }
