@@ -183,6 +183,16 @@
         "RAILWAY_TOKEN": "${RAILWAY_TOKEN}"
       }
     },
+    "factory-ollama": {
+      "command": "node",
+      "args": [
+        "mcp/servers/ollama/index.js"
+      ],
+      "env": {
+        "OLLAMA_HOST": "${OLLAMA_HOST}",
+        "RTK_MODEL": "${RTK_MODEL}"
+      }
+    },
     "factory-knowledge": {
       "command": "node",
       "args": [

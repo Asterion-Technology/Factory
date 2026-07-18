@@ -192,21 +192,32 @@ These are non-negotiable in every task:
 
 ---
 
-## Context Compression (RTK)
+## Local Model Surfaces (RTK + factory-ollama)
 
-Before passing large outputs to any model (including yourself across large context windows), run through RTK compression:
+Local models are REAL callable surfaces, not policy prose — use them to keep
+frontier-token spend down:
+
+- **factory-ollama MCP** — prefer these tools for commodity text work:
+  `summarize_text` (long files/logs), `compress_context` (RTK-style ~70%
+  reduction of diffs/logs before reasoning over them), `draft_changelog`,
+  `ollama_generate` (raw local generation), `list_models`.
+- **RTK compression CLI** — cross-platform: `node scripts/rtk-compress.js`
+  (`scripts/rtk-compress.sh` is a thin wrapper for existing callers):
 
 ```bash
-git diff | scripts/rtk-compress.sh
-git log --oneline -20 | scripts/rtk-compress.sh
+git diff | node scripts/rtk-compress.js
+git log --oneline -20 | node scripts/rtk-compress.js
 ```
 
-RTK is mandatory before passing to any Ollama model. Target 70% token reduction on logs and diffs.
+- A PreToolUse hook (`scripts/pretool-suggest-compress.js`) warns when a Bash
+  command looks like it will dump large output (unlimited `git log`/`git diff`,
+  `docker logs` without `--tail`, full test runs). Heed the suggestion — add
+  limits or pipe through RTK.
+- LiteLLM (:4000) is infra-only: interactive Claude sessions never route through
+  it. Start it with `start-factory --full` only when something actually calls it.
 
-Raw uncompressed output must be preserved for:
-- Security incidents
-- Production outages
-- Audit trails
+Target 70% token reduction on logs and diffs. Raw uncompressed output must be
+preserved for: security incidents, production outages, audit trails.
 
 ---
 

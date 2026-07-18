@@ -226,6 +226,20 @@
       },
       "dependsOn": [{ "kind": "env", "value": "RAILWAY_TOKEN" }]
     },
+    "factory-ollama": {
+      "origin": "local-node",
+      "status": "active",
+      "config": {
+        "command": "node",
+        "args": ["mcp/servers/ollama/index.js"],
+        "env": {
+          "OLLAMA_HOST": "${OLLAMA_HOST}",
+          "RTK_MODEL": "${RTK_MODEL}"
+        }
+      },
+      "dependsOn": [{ "kind": "port", "value": 11434, "service": "ollama" }],
+      "notes": "Callable surface for local models — summarize/compress/draft on Ollama instead of spending frontier tokens."
+    },
     "factory-knowledge": {
       "origin": "local-node",
       "status": "active",
