@@ -41,3 +41,10 @@ export {
   type PricingLineItem,
   type PricingSnapshot,
 } from './pricing';
+export {
+  LETTER_GENERATOR_VERSION,
+  LetterRenderError,
+  buildLetterFields,
+  renderLetterTemplate,
+  type LetterFieldsInput,
+} from './letter';

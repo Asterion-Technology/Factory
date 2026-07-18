@@ -381,6 +381,18 @@ const toMatter = (row: MatterRow): MatterRecord => ({
 export class D1MatterStore implements MatterStore {
   constructor(private readonly db: D1Like) {}
 
+  async getById(id: string): Promise<MatterRecord | null> {
+    const row = await this.db.prepare('SELECT * FROM matters WHERE id = ?').bind(id).first<MatterRow>();
+    return row ? toMatter(row) : null;
+  }
+
+  async update(record: MatterRecord): Promise<void> {
+    await this.db
+      .prepare('UPDATE matters SET state = ?, updated_at = ? WHERE id = ?')
+      .bind(record.state, record.updatedAt, record.id)
+      .run();
+  }
+
   async insert(record: MatterRecord): Promise<void> {
     await this.db
       .prepare(

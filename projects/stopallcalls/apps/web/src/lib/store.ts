@@ -39,9 +39,24 @@ import {
   type RetainerSignatureStore,
   type RetainerVersionStore,
 } from '@stopallcalls/db';
+import type {
+  ApprovalStore,
+  DeliveryStore,
+  LetterTemplateStore,
+  LetterVersionStore,
+  TaskStore,
+} from '@stopallcalls/db';
+import {
+  InMemoryApprovalStore,
+  InMemoryDeliveryStore,
+  InMemoryLetterTemplateStore,
+  InMemoryLetterVersionStore,
+  InMemoryTaskStore,
+} from '@stopallcalls/db';
 import {
   FakeIdentityAdapter,
   FakePaymentAdapter,
+  FakePdfAdapter,
   FakeSignatureAdapter,
 } from '@stopallcalls/integrations';
 import {
@@ -228,6 +243,53 @@ export function getRetainerSignatureStore(): RetainerSignatureStore {
   const cf = cloudflareEnv();
   g[RETAINER_SIGNATURE_KEY] ??= cf ? new D1RetainerSignatureStore(cf.DB) : new InMemoryRetainerSignatureStore();
   return g[RETAINER_SIGNATURE_KEY];
+}
+
+// Phase 5 stores (letters). In-memory pending migration 0004 (TODO.md).
+const LETTER_TEMPLATE_KEY = Symbol.for('stopallcalls.letterTemplateStore');
+const LETTER_VERSION_KEY = Symbol.for('stopallcalls.letterVersionStore');
+const APPROVAL_KEY = Symbol.for('stopallcalls.approvalStore');
+const DELIVERY_KEY = Symbol.for('stopallcalls.deliveryStore');
+const TASK_KEY = Symbol.for('stopallcalls.taskStore');
+const PDF_ADAPTER_KEY = Symbol.for('stopallcalls.pdfAdapter');
+
+const g5 = globalThis as {
+  [LETTER_TEMPLATE_KEY]?: LetterTemplateStore;
+  [LETTER_VERSION_KEY]?: LetterVersionStore;
+  [APPROVAL_KEY]?: ApprovalStore;
+  [DELIVERY_KEY]?: DeliveryStore;
+  [TASK_KEY]?: TaskStore;
+  [PDF_ADAPTER_KEY]?: FakePdfAdapter;
+};
+
+export function getLetterTemplateStore(): LetterTemplateStore {
+  g5[LETTER_TEMPLATE_KEY] ??= new InMemoryLetterTemplateStore();
+  return g5[LETTER_TEMPLATE_KEY];
+}
+
+export function getLetterVersionStore(): LetterVersionStore {
+  g5[LETTER_VERSION_KEY] ??= new InMemoryLetterVersionStore();
+  return g5[LETTER_VERSION_KEY];
+}
+
+export function getApprovalStore(): ApprovalStore {
+  g5[APPROVAL_KEY] ??= new InMemoryApprovalStore();
+  return g5[APPROVAL_KEY];
+}
+
+export function getDeliveryStore(): DeliveryStore {
+  g5[DELIVERY_KEY] ??= new InMemoryDeliveryStore();
+  return g5[DELIVERY_KEY];
+}
+
+export function getTaskStore(): TaskStore {
+  g5[TASK_KEY] ??= new InMemoryTaskStore();
+  return g5[TASK_KEY];
+}
+
+export function getPdfAdapter(): FakePdfAdapter {
+  g5[PDF_ADAPTER_KEY] ??= new FakePdfAdapter();
+  return g5[PDF_ADAPTER_KEY];
 }
 
 // Phase 4 provider adapters: fakes only (DEV-003) — real provider selection

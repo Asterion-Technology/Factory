@@ -103,13 +103,45 @@ export class RealClioAdapter implements ClioAdapter {
     return { clioId: String(body.data.id), displayNumber: body.data.display_number };
   }
 
-  async uploadDocument(_input: {
+  async uploadDocument(input: {
     idempotencyKey: string;
     matterClioId: string;
     filename: string;
     bytes: Uint8Array;
   }): Promise<{ clioDocumentId: string }> {
-    // Phase 5 (LTR/DLV): Clio's multi-step document upload lands with letters.
-    throw new Error('Clio document upload is not implemented until Phase 5.');
+    // Clio v4 three-step upload: create the document shell (returns a
+    // presigned put_url), PUT the bytes to that URL, then mark the version
+    // fully uploaded. Idempotency is enforced upstream by the delivery ledger.
+    const created = await this.request<{
+      data: {
+        id: number;
+        latest_document_version: { uuid: string; put_url: string; put_headers: { name: string; value: string }[] };
+      };
+    }>(`/documents.json?fields=id,latest_document_version{uuid,put_url,put_headers}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        data: {
+          name: input.filename,
+          parent: { id: Number(input.matterClioId), type: 'Matter' },
+        },
+      }),
+    });
+    const version = created.data.latest_document_version;
+    const putHeaders = Object.fromEntries(version.put_headers.map((h) => [h.name, h.value]));
+    const putRes = await fetch(version.put_url, {
+      method: 'PUT',
+      headers: putHeaders,
+      body: input.bytes as unknown as BodyInit,
+    });
+    if (!putRes.ok) {
+      throw new Error(`Clio document PUT returned ${putRes.status}`);
+    }
+    await this.request(`/documents/${created.data.id}.json?fields=id`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        data: { uuid: version.uuid, fully_uploaded: true },
+      }),
+    });
+    return { clioDocumentId: String(created.data.id) };
   }
 }

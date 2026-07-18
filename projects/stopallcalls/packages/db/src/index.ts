@@ -109,6 +109,44 @@ export {
   requestRetainerSignature,
   retainerGateFromRecord,
 } from './retainer';
+export type {
+  ApprovalRecord,
+  ApprovalStore,
+  GenerateLetterDeps,
+  LetterTemplateRecord,
+  LetterTemplateStore,
+  LetterVersionRecord,
+  LetterVersionStatus,
+  LetterVersionStore,
+  PdfRenderer,
+} from './letters';
+export {
+  InMemoryApprovalStore,
+  InMemoryLetterTemplateStore,
+  InMemoryLetterVersionStore,
+  decideLetterApproval,
+  generateLetterVersion,
+  legalApprovalGateForMatter,
+  publishLetterTemplate,
+  submitLetterForReview,
+} from './letters';
+export type {
+  ClioDocumentUploader,
+  DeliveryEventDeps,
+  DeliveryRecord,
+  DeliveryStore,
+  LetterEmailSender,
+  SendLetterDeps,
+  SendLetterInput,
+  TaskRecord,
+  TaskStore,
+} from './delivery';
+export {
+  InMemoryDeliveryStore,
+  InMemoryTaskStore,
+  recordDeliveryEvent,
+  sendApprovedLetter,
+} from './delivery';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,

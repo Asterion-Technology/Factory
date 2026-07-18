@@ -4,13 +4,17 @@ import {
 } from '@stopallcalls/domain';
 import {
   identityGateFromRecord,
+  legalApprovalGateForMatter,
   paymentGateFromRecords,
   retainerGateFromRecord,
+  type MatterRecord,
 } from '@stopallcalls/db';
 import {
+  getApprovalStore,
   getConflictCheckStore,
   getEvidenceStore,
   getIdentityStore,
+  getLetterVersionStore,
   getOrderStore,
   getPaymentStore,
   getRetainerSignatureStore,
@@ -36,4 +40,15 @@ export async function computeGatesForIntake(intakeId: string): Promise<GateSnaps
     retainer: retainerGateFromRecord(signature),
     payment: paymentGateFromRecords(payments),
   });
+}
+
+/** Matter-scoped snapshot: intake gates + LEGAL_APPROVAL from the letter's
+ * hash-bound approval (Phase 5). This is what letter sending enforces. */
+export async function computeGatesForMatter(matter: MatterRecord): Promise<GateSnapshot> {
+  const base = await computeGatesForIntake(matter.intakeId);
+  const legal = await legalApprovalGateForMatter(
+    { versions: getLetterVersionStore(), approvals: getApprovalStore() },
+    matter.id,
+  );
+  return { ...base, LEGAL_APPROVAL: { gate: 'LEGAL_APPROVAL', status: legal } };
 }

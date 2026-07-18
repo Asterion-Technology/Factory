@@ -76,7 +76,10 @@ export interface MatterRecord {
 
 export interface MatterStore {
   insert(record: MatterRecord): Promise<void>;
+  getById(id: string): Promise<MatterRecord | null>;
   listByIntake(intakeId: string): Promise<MatterRecord[]>;
+  /** State changes only — always guarded by canTransition (WF-001). */
+  update(record: MatterRecord): Promise<void>;
 }
 
 /** WF-003/DATA-005: the idempotency ledger for external side effects. */
@@ -116,10 +119,19 @@ export class InMemoryMatterStore implements MatterStore {
     this.byId.set(record.id, structuredClone(record));
   }
 
+  async getById(id: string): Promise<MatterRecord | null> {
+    const record = this.byId.get(id);
+    return record ? structuredClone(record) : null;
+  }
+
   async listByIntake(intakeId: string): Promise<MatterRecord[]> {
     return [...this.byId.values()]
       .filter((m) => m.intakeId === intakeId)
       .map((m) => structuredClone(m));
+  }
+
+  async update(record: MatterRecord): Promise<void> {
+    this.byId.set(record.id, structuredClone(record));
   }
 }
 
