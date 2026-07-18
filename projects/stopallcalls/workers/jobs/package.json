@@ -9,5 +9,10 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250110.0",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@stopallcalls/contracts": "workspace:*",
+    "@stopallcalls/db": "workspace:*",
+    "@stopallcalls/domain": "workspace:*"
   }
 }

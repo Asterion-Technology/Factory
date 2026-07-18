@@ -368,6 +368,71 @@ describe('D1 Phase 4 stores (RAD-13)', () => {
   });
 });
 
+describe('D1 letter pipeline (RAD-14, migration 0004)', () => {
+  it('template → generate → approve → send exactly once → delivery event, all persisted', async () => {
+    const { D1LetterTemplateStore, D1LetterVersionStore, D1ApprovalStore, D1DeliveryStore, D1TaskStore } =
+      await import('../src/d1-phase5');
+    const { publishLetterTemplate, generateLetterVersion, submitLetterForReview, decideLetterApproval } =
+      await import('../src/letters');
+    const { sendApprovedLetter, recordDeliveryEvent } = await import('../src/delivery');
+    const { FakeEmailAdapter, FakePdfAdapter } = await import('@stopallcalls/integrations');
+
+    const matters = new D1MatterStore(env.DB);
+    const deps = {
+      templates: new D1LetterTemplateStore(env.DB),
+      versions: new D1LetterVersionStore(env.DB),
+      matters,
+      pdf: new FakePdfAdapter(),
+      approvals: new D1ApprovalStore(env.DB),
+      deliveries: new D1DeliveryStore(env.DB),
+      tasks: new D1TaskStore(env.DB),
+      email: new FakeEmailAdapter(),
+    };
+    const intake = await submittedD1Intake(['ABC Collections (Fictitious)']);
+    const matter = {
+      id: crypto.randomUUID(),
+      intakeId: intake.id,
+      agencyId: intake.submittedSnapshot!.agencies[0]!.id,
+      clioMatterId: 'clio-1',
+      displayNumber: 'FAKE-D1-1',
+      state: 'MATTER_CREATED' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await matters.insert(matter);
+
+    const uniqueVersion = Math.floor(Math.random() * 1_000_000) + 2;
+    await publishLetterTemplate(deps.templates, {
+      jurisdiction: 'CA',
+      version: uniqueVersion,
+      body: 'To {{agencyName}} re {{matterNumber}}: on behalf of {{consumerName}}, cease contact. {{letterDate}}',
+    });
+    const v1 = await generateLetterVersion(deps, intake, matter.id, { author: 'staff-1', letterDate: '2026-07-18' });
+    expect(v1.templateVersion).toBe(uniqueVersion);
+    await submitLetterForReview(deps, v1.id);
+    await decideLetterApproval(deps, v1.id, {
+      actor: { id: 'lawyer-1', role: 'LAWYER' },
+      contentHash: v1.contentHash,
+      decision: 'APPROVED',
+    });
+    const send = {
+      letterVersionId: v1.id,
+      recipient: 'agency-contact@example.test',
+      senderAddress: 'letters@firm.example.test',
+      gates: ALL_PASSED,
+    };
+    const first = await sendApprovedLetter(deps, send);
+    const retry = await sendApprovedLetter(deps, send);
+    expect(retry.id).toBe(first.id);
+    expect(deps.email.sent).toHaveLength(1);
+    expect((await deps.deliveries.getByIdempotencyKey(first.idempotencyKey))?.status).toBe('SENT');
+
+    await recordDeliveryEvent(deps, { providerMessageId: first.providerMessageId!, status: 'BOUNCED' });
+    expect((await matters.getById(matter.id))?.state).toBe('BOUNCED');
+    expect(await deps.tasks.listByMatter(matter.id)).toHaveLength(1);
+  });
+});
+
 describe('D1AuditStore (DATA-004)', () => {
   it('appends, preserves chain order, and the full chain verifies', async () => {
     const { appendAuditEvent, verifyAuditChain } = await import('../src/audit');

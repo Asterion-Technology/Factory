@@ -48,7 +48,12 @@ import type {
   TaskStore,
 } from '@stopallcalls/db';
 import {
+  D1ApprovalStore,
   D1AuditStore,
+  D1DeliveryStore,
+  D1LetterTemplateStore,
+  D1LetterVersionStore,
+  D1TaskStore,
   InMemoryApprovalStore,
   InMemoryAuditStore,
   InMemoryDeliveryStore,
@@ -248,7 +253,7 @@ export function getRetainerSignatureStore(): RetainerSignatureStore {
   return g[RETAINER_SIGNATURE_KEY];
 }
 
-// Phase 5 stores (letters). In-memory pending migration 0004 (TODO.md).
+// Phase 5 stores (letters), D1-backed since migration 0004.
 const LETTER_TEMPLATE_KEY = Symbol.for('stopallcalls.letterTemplateStore');
 const LETTER_VERSION_KEY = Symbol.for('stopallcalls.letterVersionStore');
 const APPROVAL_KEY = Symbol.for('stopallcalls.approvalStore');
@@ -266,27 +271,32 @@ const g5 = globalThis as {
 };
 
 export function getLetterTemplateStore(): LetterTemplateStore {
-  g5[LETTER_TEMPLATE_KEY] ??= new InMemoryLetterTemplateStore();
+  const cf = cloudflareEnv();
+  g5[LETTER_TEMPLATE_KEY] ??= cf ? new D1LetterTemplateStore(cf.DB) : new InMemoryLetterTemplateStore();
   return g5[LETTER_TEMPLATE_KEY];
 }
 
 export function getLetterVersionStore(): LetterVersionStore {
-  g5[LETTER_VERSION_KEY] ??= new InMemoryLetterVersionStore();
+  const cf = cloudflareEnv();
+  g5[LETTER_VERSION_KEY] ??= cf ? new D1LetterVersionStore(cf.DB) : new InMemoryLetterVersionStore();
   return g5[LETTER_VERSION_KEY];
 }
 
 export function getApprovalStore(): ApprovalStore {
-  g5[APPROVAL_KEY] ??= new InMemoryApprovalStore();
+  const cf = cloudflareEnv();
+  g5[APPROVAL_KEY] ??= cf ? new D1ApprovalStore(cf.DB) : new InMemoryApprovalStore();
   return g5[APPROVAL_KEY];
 }
 
 export function getDeliveryStore(): DeliveryStore {
-  g5[DELIVERY_KEY] ??= new InMemoryDeliveryStore();
+  const cf = cloudflareEnv();
+  g5[DELIVERY_KEY] ??= cf ? new D1DeliveryStore(cf.DB) : new InMemoryDeliveryStore();
   return g5[DELIVERY_KEY];
 }
 
 export function getTaskStore(): TaskStore {
-  g5[TASK_KEY] ??= new InMemoryTaskStore();
+  const cf = cloudflareEnv();
+  g5[TASK_KEY] ??= cf ? new D1TaskStore(cf.DB) : new InMemoryTaskStore();
   return g5[TASK_KEY];
 }
 

@@ -147,6 +147,8 @@ export {
   recordDeliveryEvent,
   sendApprovedLetter,
 } from './delivery';
+export type { FollowUpDeps, FollowUpSweepResult } from './followup';
+export { DEFAULT_FOLLOW_UP_DAYS, FOLLOW_UP_TASK_KIND, runFollowUpSweep } from './followup';
 export type {
   AppendAuditInput,
   AuditActorType,
@@ -156,6 +158,13 @@ export type {
 } from './audit';
 export { InMemoryAuditStore, appendAuditEvent, verifyAuditChain } from './audit';
 export { D1AuditStore } from './d1-audit';
+export {
+  D1ApprovalStore,
+  D1DeliveryStore,
+  D1LetterTemplateStore,
+  D1LetterVersionStore,
+  D1TaskStore,
+} from './d1-phase5';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,

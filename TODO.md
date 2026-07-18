@@ -124,7 +124,7 @@
 - [x] Hash-bound lawyer-only approval (LTR-006..008 / WF-005): approve/reject binds to the exact content hash reviewed; regeneration supersedes and reverts APPROVED matters to IN_REVIEW; stale approvals can never authorize a send
 - [x] Delivery (DLV-001..007): exactly-once send (idempotency-keyed, re-verifies approval + ALL gates at send time), sent copy uploaded to the Clio matter, bounce → matter BOUNCED + follow-up task; RealClioAdapter.uploadDocument implemented (v4 three-step flow)
 - [x] Staff routes: template publish, letter generate/review payload (content + prior-version diff source + gates), submit-for-review, decision, send; email delivery webhook (shared-secret, fails closed)
-- [ ] D1 stores + migration 0004 for letter_templates/letter_versions/approvals/deliveries/tasks — Phase 5 records are in-memory
+- [x] D1 stores + migration 0004 (2026-07-18): letter templates (inline body), versions (+template_version), approvals (staff TEXT ids), deliveries, tasks all persisted; full-pipeline D1 test (template→generate→approve→send-once→bounce)
 - [ ] Real letter template text + PDF rendering are placeholders: template body needs counsel-approved wording; FakePdfAdapter needs a real PDF engine; rendered PDFs should persist to R2 (documents bucket)
 - [ ] Live-verify Clio document upload against the real tenant (human-approved write test, like Phase 3's)
 - [ ] Email webhook uses a shared-secret header — replace with the real provider's signature scheme (e.g. Resend/svix) when the email provider lands
@@ -137,7 +137,8 @@
 - [ ] Magic (21st.dev) MCP returns malformed payloads on both builder and inspiration tools ([object Object] / invalid MCP content) — upstream wrapper bug; component was hand-built this time. Re-test after their next release
 - [ ] Ops dashboards (queue depth, dead letters, provider latency, Clio sync lag, payment anomalies, delivery failures — OPS-004), PII-free alerts + runbooks (OPS-005/006), scheduled reconciliation (OPS-007)
 - [ ] Audit export + retention/deletion workflows (SEC-011, SEC-014/015)
-- [ ] Follow-up scheduling + optional Phase 2 invitation (DLV-007/008) — needs the jobs queue consumer (still a stub)
+- [x] Jobs worker is real (2026-07-18): typed queue consumer (zod-validated envelope, malformed→ack, errors→retry→DLQ) + daily cron running the idempotent follow-up sweep (DELIVERED + 14d + no response → FOLLOW_UP_DUE + task, DLV-007/OPS-007). Deploy of the jobs worker is human-gated and still pending
+- [ ] Move evidence scanning + post-submit conflict checks onto the queue (message shapes already defined in contracts/jobs.ts); Phase 2 invitation flow (DLV-008) still open
 - [ ] Security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
