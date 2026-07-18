@@ -158,7 +158,7 @@ The devcontainer installs all tools. The bootstrap script syncs all MCP servers.
 | 2 | Ollama, LiteLLM, RTK compression | ✅ Complete |
 | 3 | MCP ecosystem — all 10 custom wrappers | ✅ Complete |
 | 4 | GitHub CI (10 gates), Codex review, Railway environments | ✅ Complete |
-| 5 | Observation Deck (Chart.js, metrics-collector, 6-hour cron) | ✅ Complete |
+| 5 | Observation Deck v2 (factory-hub: real spend, MCP liveness, uncapped counters) | ✅ Complete |
 | 6 | Knowledge platform (ChromaDB + nomic-embed-text + factory-knowledge MCP) | ✅ Complete |
 | 7 | Full workflow machinery — Linear sync, changelog, metrics, docs | ✅ Complete |
 

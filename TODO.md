@@ -27,12 +27,8 @@
   - Suggested fix: Mint a new token in the Railway dashboard, update `.devcontainer/.env`, re-sync to HKCU; consider adding a lightweight validity probe (`railway whoami`) to `bootstrap.sh --check`
 
 #### Technical Debt
-- [ ] `scripts/serve-dashboard.sh` prefers `npx serve`, which leaks a file handle per request on Windows — the Observation Deck polls `events.jsonl` every 3s, so the server crashes with `EMFILE: too many open files` after ~90 minutes (observed 2026-07-08)
-  - Location: `scripts/serve-dashboard.sh` (npx branch)
-  - Suggested fix: prefer the Python `http.server` branch on Windows (no leak), or pin a static-server package without the leak; Python fallback verified working on port 3099
-- [ ] `.mcp.json` is untracked — decide whether to commit it (current version contains only `${VAR}` references, no literal secrets, so it is safe to track)
-  - Location: `.mcp.json`
-  - Suggested fix: `git add .mcp.json` on a feature branch once the 2026-07-06 rewrite is confirmed working
+- [x] `npx serve` EMFILE leak — fixed 2026-07-18: the Observation Deck is now served by `tools/factory-hub/server.mjs` (zero-dep node:http); `serve-dashboard.sh` is a deprecated exec wrapper
+- [x] `.mcp.json` tracked as of 2026-07-18 and now GENERATED from `mcp/registry.json` via `scripts/gen-mcp-config.mjs` (CI gate 10 checks drift) — do not edit by hand
 - [ ] `factory-knowledge` requires local ChromaDB (`docker compose -f knowledge/docker-compose.yml up -d`) — not started automatically
   - Location: `knowledge/docker-compose.yml`, `mcp/servers/knowledge/index.js`
   - Suggested fix: Add a health check + start hint to `scripts/bootstrap.sh`
@@ -48,6 +44,27 @@
 - [ ] Haven metrics in the Metrics Collection workflow depend on a `CROSS_REPO_TOKEN` repo secret (auto `GITHUB_TOKEN` can't read Gyro06/Haven) — Haven counts silently read 0 if the secret is missing/expired
   - Location: `.github/workflows/metrics.yml`
   - Suggested fix: Confirm `CROSS_REPO_TOKEN` exists in Asterion-Technology/Factory repo secrets after PR #6 merges; if Haven's by_repo entry stays all-zero on a real week, that's the tell
+
+#### From the 2026-07-18 Factory overhaul (start-factory / factory-hub / registry)
+- [ ] Delete the throwaway GitHub repo `Asterion-Technology/factory-scaffold-test` (scaffold verification artifact)
+  - Location: github.com/Asterion-Technology/factory-scaffold-test (private, one commit)
+  - Suggested fix: `gh auth refresh -h github.com -s delete_repo` then `gh repo delete Asterion-Technology/factory-scaffold-test --yes` (current token lacks the delete_repo scope)
+- [ ] Duplicate MCP inventories: linear/sentry/context7 exist BOTH as local .mcp.json servers and claude.ai-hosted connectors — two tool inventories cost context every session
+  - Location: `mcp/registry.json` (notes fields flag them)
+  - Suggested fix: pick one per service (hosted for linear/sentry/context7 is the likely call) and retire the other in registry.json
+- [ ] Retire zero-call MCP servers after ~30 days of counters.json evidence — pruning beats probing 20+ servers forever
+  - Location: `dashboards/observation-deck/counters.json` (byServer), hub `/api/status` lastCall
+- [ ] LiteLLM has no interactive-session caller — it is opt-in via `start-factory --full`; either back factory-ollama fallback tiers with it or remove the stack
+  - Location: `config/docker-compose.yml`, `config/litellm.yaml`
+- [ ] metrics-collector.sh still fabricates the workforce split and `saved_rtk` figures (cost section now unused by the dashboard)
+  - Location: `scripts/metrics-collector.sh` (Langfuse block + hardcoded 60/25/15)
+  - Suggested fix: strip the Langfuse/cost block; keep PR/CI/security collection
+- [ ] Stray Playwright accessibility snapshots at repo root (award-*.yml, bank-*.yml, project-*.yml, stripe-checkout.yml, etc.) and an orphan pnpm-lock.yaml — untracked noise
+  - Suggested fix: delete after confirming nothing references them; .playwright-mcp/ is now gitignored
+- [ ] context.md is a likely-stale duplicate of CLAUDE.md content (696 lines) — audit and shrink to a pointer
+- [ ] Migrate TODO.md's open items to Linear (asterion workspace) and shrink this file to a pointer — it mixes done/stale/open across 300+ lines
+- [ ] Hosted-connector call counts: log-tool-event.js records e.g. `cloudflare_developer_platform (hosted)` while registry ids are `claude-ai-cloudflare` — dashboard tiles for multi-word hosted connectors miss their call counts
+  - Suggested fix: add a callKey field to registry hosted entries and match on it in index.html renderMCP
 
 ### StopAllCalls (projects/stopallcalls — AST-167 / AST-168)
 
@@ -240,7 +257,7 @@
     ```
   - **Remaining: Langfuse cost wiring** — set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` env vars (see below)
 
-- [ ] Langfuse telemetry wiring — connect LiteLLM → Langfuse for cost and token tracking
+- [ ] ~~Langfuse telemetry wiring~~ superseded 2026-07-18: factory-hub computes real per-model spend from Claude Code transcripts (`/api/spend`); Langfuse only becomes relevant if something starts calling LiteLLM
   - Value: Populates Observation Deck cost metrics; enables RTK savings reporting and per-model cost attribution
   - Suggested implementation: Set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` env vars + enable callback in `config/litellm.yaml`
 

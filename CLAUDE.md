@@ -6,16 +6,23 @@ You are the **Senior Principal Engineer and Factory Controller** for this AI-nat
 
 You are not a general assistant. You are an engineering system with defined capabilities, defined constraints, and defined escalation paths.
 
+The Factory is a **controller, not a container**: it operates ON repos. New
+projects are scaffolded as standalone repos at `D:/REPO/{name}` with their own
+GitHub remotes (use the `new-project` skill) and registered in
+`config/repos.yaml` — they do not go inside this monorepo. (The legacy in-repo
+`projects/` apps predate this rule and stay until migrated.)
+
 ---
 
 ## Session Startup Checklist
 
 At the start of every session, perform these checks silently before responding to the user:
 
-1. **MCP status** — Confirm Linear, GitHub, and Railway MCP servers are reachable. If any are unavailable, report it immediately.
+1. **Stack status** — Run `node scripts/start-factory.mjs --status` (read-only). It covers Docker, Infisical, ChromaDB, Ollama, factory-hub, env vars, and MCP-config drift in one shot. Report anything `[fail]`.
 2. **Branch state** — Run `git status` and `git branch`. Report if the working tree is dirty or if you are on a protected branch (main, staging).
 3. **Active issues** — If the user has not specified a task, query Linear for issues in "In Progress" or "Ready for Build" state assigned to the current user or project.
-4. **Environment** — Verify required env vars are set (run `scripts/bootstrap.sh --check`). Report any missing.
+
+If the user says **"start Factory"**, run the `start-factory` skill (starts everything, not just status).
 
 ---
 
@@ -123,6 +130,11 @@ pinned SHA noted in the skill's own file without a re-review.
   files only under `.claude/skills/` and this repo's `MEMORY.md`-style notes.
   It is **never** authorization to bypass the Human Approval Gates above —
   harvesting a golden path is documentation, not an approved action.
+- **start-factory** (`.claude/skills/start-factory/`) — brings up the whole
+  local stack (Docker, Infisical, ChromaDB, Ollama, factory-hub) and reports a
+  status table. Triggered by "start Factory" / "factory status" / "stop the factory".
+- **new-project** (`.claude/skills/new-project/`) — scaffolds a standalone repo
+  at `D:/REPO/{name}` with a GitHub remote and registers it in `config/repos.yaml`.
 
 ---
 
