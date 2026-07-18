@@ -433,6 +433,40 @@ describe('D1 letter pipeline (RAD-14, migration 0004)', () => {
   });
 });
 
+describe('collectOpsMetrics (OPS-004)', () => {
+  it('aggregates counts across the live schema without PII', async () => {
+    const { collectOpsMetrics } = await import('../src/ops');
+    const { D1OrderStore, D1PaymentStore } = await import('../src/d1-phase4');
+    const { D1TaskStore } = await import('../src/d1-phase5');
+
+    // Self-seeded: the workers pool isolates storage per test.
+    const intake = await submittedD1Intake(['Ops Metrics Agency (Fictitious)']);
+    const orders = new D1OrderStore(env.DB);
+    const payments = new D1PaymentStore(env.DB);
+    const order = await createOrderForIntake(orders, PRICING, intake);
+    const payment = await startEmtPayment(payments, order);
+    await confirmEmtPayment(payments, payment.id, { id: 'billing-1', role: 'BILLING' });
+    await new D1TaskStore(env.DB).insert({
+      id: crypto.randomUUID(),
+      matterId: null,
+      intakeId: intake.id,
+      kind: 'OPS_TEST',
+      status: 'OPEN',
+      dueAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const metrics = await collectOpsMetrics(env.DB);
+    expect(metrics.intakesByState.SUBMITTED).toBeGreaterThan(0);
+    expect(metrics.payments.settled).toBe(1);
+    expect(metrics.payments.awaitingEmt).toBe(0);
+    expect(metrics.tasks.open).toBe(1);
+    // Counts only — the payload carries no identifiers or free text.
+    expect(JSON.stringify(metrics)).not.toMatch(/@example\.test/);
+  });
+});
+
 describe('D1AuditStore (DATA-004)', () => {
   it('appends, preserves chain order, and the full chain verifies', async () => {
     const { appendAuditEvent, verifyAuditChain } = await import('../src/audit');

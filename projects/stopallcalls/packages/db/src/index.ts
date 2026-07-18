@@ -158,6 +158,8 @@ export type {
 } from './audit';
 export { InMemoryAuditStore, appendAuditEvent, verifyAuditChain } from './audit';
 export { D1AuditStore } from './d1-audit';
+export type { OpsMetrics } from './ops';
+export { collectOpsMetrics } from './ops';
 export {
   D1ApprovalStore,
   D1DeliveryStore,

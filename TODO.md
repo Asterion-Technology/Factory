@@ -135,8 +135,10 @@
 - [x] Consumer case-status dashboard (UI-001): /status tracker — 7 steps with complete/active/pending/attention states, live actions (identity session, retainer sign + confirm, card checkout, e-Transfer instructions), consumer-safe aggregate endpoint (conflict data never exposed, WF-006); E2E-covered mobile+desktop
 - [ ] Staff portal screens (UI-002..006, master client view) — staff APIs exist; screens unbuilt (need Cloudflare Access first for real auth)
 - [ ] Magic (21st.dev) MCP returns malformed payloads on both builder and inspiration tools ([object Object] / invalid MCP content) — upstream wrapper bug; component was hand-built this time. Re-test after their next release
-- [ ] Ops dashboards (queue depth, dead letters, provider latency, Clio sync lag, payment anomalies, delivery failures — OPS-004), PII-free alerts + runbooks (OPS-005/006), scheduled reconciliation (OPS-007)
-- [ ] Audit export + retention/deletion workflows (SEC-011, SEC-014/015)
+- [x] DB-backed ops summary (2026-07-18): GET /api/staff/ops — intake/evidence/identity/payment/delivery/task/letter counts from D1, counts only never PII (OPS-004/005); follow-up reconciliation cron already running (OPS-007)
+- [ ] Remaining ops signals need Cloudflare surfaces: queue depth + dead letters (Queues API), request errors/provider latency (Workers observability), push alerts + runbooks (OPS-005/006)
+- [x] Audit export (2026-07-18): GET /api/staff/audit/export — NDJSON with a manifest line carrying the live chain verdict (SEC-011/014)
+- [ ] Retention/deletion workflows (SEC-015) — retention periods are an SRS §16 counsel decision; implement once policy is set
 - [x] Jobs worker is real (2026-07-18): typed queue consumer (zod-validated envelope, malformed→ack, errors→retry→DLQ) + daily cron running the idempotent follow-up sweep (DELIVERED + 14d + no response → FOLLOW_UP_DUE + task, DLV-007/OPS-007). Deploy of the jobs worker is human-gated and still pending
 - [ ] Move evidence scanning + post-submit conflict checks onto the queue (message shapes already defined in contracts/jobs.ts); Phase 2 invitation flow (DLV-008) still open
 - [ ] Security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
