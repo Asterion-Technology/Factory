@@ -75,7 +75,7 @@ repos:
     linear_project: "Haven"
 
   - id: stopallcalls
-    name: "StopAllCalls"
+    name: "Stops All Calls"
     local_path: Factory/projects/stopallcalls
     remote: "https://github.com/radical-disruptive/cease.git"
     role: app

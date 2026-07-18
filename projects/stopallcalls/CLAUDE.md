@@ -1,4 +1,4 @@
-# StopAllCalls — Agent Rules
+# Stops All Calls — Agent Rules
 
 This project is a legal-services workflow with hard human-approval gates. These rules distill SRS §15 ([docs/SRS.md](docs/SRS.md)) and are binding for any coding agent working in this directory. They add to — never replace — the Factory-level Human Approval Gates in the repo-root `CLAUDE.md`.
 

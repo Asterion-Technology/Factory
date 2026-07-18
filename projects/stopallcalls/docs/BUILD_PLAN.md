@@ -1,10 +1,10 @@
-# StopAllCalls — Software Build Plan
+# Stops All Calls — Software Build Plan
 
 Derived from [SRS.md](SRS.md) v1.0 (2026-07-10), attached to Linear issue [RAD-8](https://linear.app/radical-disruption/issue/RAD-8/icd-cease-and-dissist). Tracked in the Linear project **Cease** (workspace radical-disruption, team RAD).
 
 ## What we are building
 
-A consumer legal-service funnel at **StopAllCalls.com**: intake → evidence upload → Clio conflict check (human disposition) → identity verification → limited-scope retainer → payment (card/Visa debit/EMT) → one Clio matter per collection agency → template-generated cease-and-desist letter → **lawyer approval bound to a content hash** → email delivery with audit trail → follow-up and optional Phase 2 litigation-review invitation.
+A consumer legal-service funnel at **stopsallcalls.com**: intake → evidence upload → Clio conflict check (human disposition) → identity verification → limited-scope retainer → payment (card/Visa debit/EMT) → one Clio matter per collection agency → template-generated cease-and-desist letter → **lawyer approval bound to a content hash** → email delivery with audit trail → follow-up and optional Phase 2 litigation-review invitation.
 
 The app owns the workflow; **Clio Manage is the system of record** for contacts, matters, documents, and the legal audit trail.
 
