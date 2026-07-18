@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface Profile {
   firstName?: string;
@@ -39,13 +39,56 @@ interface IntakeDetail {
   updatedAt: string;
 }
 
-// UI-003 master client view, v1: identity, gate state, and the agency list —
-// the submitted snapshot wins over the live draft, mirroring what gates act
-// on. Matter workspaces (UI-004) hang off this page in the next slice.
+interface ConflictCheck {
+  id: string;
+  status: string;
+  disposition?: { disposition: string; reviewedBy: string; rationale: string } | null;
+  results?: unknown[];
+}
+
+interface MatterSummary {
+  id: string;
+  agencyId: string;
+  displayNumber: string;
+  state: string;
+  updatedAt: string;
+}
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+  });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: { message?: string } };
+  if (!res.ok) throw new Error(body.error?.message ?? `Request failed (${res.status})`);
+  return body;
+}
+
+// UI-003/UI-004 master client view: identity, gate state, agency list — the
+// submitted snapshot wins over the live draft, mirroring what gates act on —
+// plus the conflict workspace and per-agency matter links.
 export default function StaffIntakeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [intake, setIntake] = useState<IntakeDetail | null>(null);
+  const [conflict, setConflict] = useState<ConflictCheck | null>(null);
+  const [matters, setMatters] = useState<MatterSummary[]>([]);
+  const [me, setMe] = useState('');
+  const [rationale, setRationale] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loadSide = useCallback(async () => {
+    if (!id) return;
+    await Promise.all([
+      api<{ check: ConflictCheck }>(`/api/staff/intakes/${id}/conflict`)
+        .then((b) => setConflict(b.check))
+        .catch(() => setConflict(null)),
+      api<{ matters: MatterSummary[] }>(`/api/staff/intakes/${id}/matters`)
+        .then((b) => setMatters(b.matters))
+        .catch(() => setMatters([])),
+    ]);
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -56,7 +99,25 @@ export default function StaffIntakeDetailPage() {
         setIntake(body.intake);
       })
       .catch(() => setError('Could not load this intake.'));
-  }, [id]);
+    void loadSide();
+    void api<{ staff: { email: string } }>('/api/staff/me').then((b) => setMe(b.staff.email)).catch(() => {});
+  }, [id, loadSide]);
+
+  const act = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      setBusy(true);
+      setActionError(null);
+      try {
+        await fn();
+        await loadSide();
+      } catch (e) {
+        setActionError((e as Error).message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [loadSide],
+  );
 
   if (error) return <p className="error">{error}</p>;
   if (!intake) return <p>Loading…</p>;
@@ -130,6 +191,87 @@ export default function StaffIntakeDetailPage() {
           </li>
         ))}
       </ul>
+
+      <h2>Conflict check (CLIO-002/003)</h2>
+      {actionError && <p className="error">{actionError}</p>}
+      {!conflict && (
+        <button
+          className="cta"
+          disabled={busy}
+          onClick={() => act(() => api(`/api/staff/intakes/${id}/conflict`, { method: 'POST' }))}
+        >
+          Run conflict check
+        </button>
+      )}
+      {conflict && (
+        <>
+          <p>
+            <span className="staff-tag">{conflict.status.replaceAll('_', ' ').toLowerCase()}</span>{' '}
+            <span className="staff-sub">{(conflict.results ?? []).length} Clio result(s)</span>
+          </p>
+          {conflict.disposition ? (
+            <p className="staff-sub">
+              Disposition: <strong>{conflict.disposition.disposition}</strong> by {conflict.disposition.reviewedBy} —{' '}
+              {conflict.disposition.rationale}
+            </p>
+          ) : (
+            <>
+              <textarea
+                className="staff-search"
+                placeholder="Rationale (required — recorded in the audit trail)"
+                value={rationale}
+                onChange={(e) => setRationale(e.target.value)}
+              />
+              <div className="staff-filters">
+                {(['CLEAR', 'POSSIBLE_CONFLICT', 'CONFLICT_FOUND'] as const).map((d) => (
+                  <button
+                    key={d}
+                    className={d === 'CLEAR' ? 'cta' : 'cta secondary'}
+                    disabled={busy || !me || !rationale.trim()}
+                    onClick={() =>
+                      act(() =>
+                        api(`/api/staff/intakes/${id}/conflict/disposition`, {
+                          method: 'POST',
+                          body: JSON.stringify({ disposition: d, reviewedBy: me, rationale: rationale.trim() }),
+                        }),
+                      )
+                    }
+                  >
+                    {d.replaceAll('_', ' ').toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      <h2>Matters ({matters.length})</h2>
+      {matters.length === 0 && (
+        <p>
+          <span className="staff-sub">None provisioned yet. </span>
+          <button
+            className="cta secondary"
+            disabled={busy}
+            onClick={() => act(() => api(`/api/staff/intakes/${id}/provision`, { method: 'POST' }))}
+          >
+            Provision matters
+          </button>
+        </p>
+      )}
+      {matters.length > 0 && (
+        <ul className="agency-list">
+          {matters.map((m) => (
+            <li key={m.id}>
+              <Link className="link" href={`/staff/matters/${m.id}`}>
+                {m.displayNumber}
+              </Link>{' '}
+              <span className="staff-tag">{m.state.replaceAll('_', ' ').toLowerCase()}</span>
+              <div className="staff-sub">updated {new Date(m.updatedAt).toLocaleString()}</div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
