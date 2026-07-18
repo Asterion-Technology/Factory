@@ -1,0 +1,14 @@
+# {{NAME}}
+
+{{DESCRIPTION}}
+
+This repo is operated by the **Agentic DevSecOps Factory** at `d:/REPO/Factory`.
+Its conventions apply here:
+
+- Every task starts from a Linear issue; branches are `feature|fix|security/<issue-id>-<slug>`.
+- No direct commits to `main`; PRs require independent review before merge.
+- Human approval gates (deploys, migrations, auth/payment changes, secrets) are
+  listed in the Factory's `CLAUDE.md` and apply unchanged.
+- Validate all user input at the API layer; parameterized queries only; no
+  hardcoded secrets — env vars via the Factory's Infisical vault.
+- Registered in the Factory's `config/repos.yaml` as `{{ID}}`.
