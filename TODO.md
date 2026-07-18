@@ -69,7 +69,7 @@
 - [ ] Tax treatment for CA launch: per-province GST/HST/QST vs flat vs Stripe Tax — needs accountant (RAD-17 Q1)
 - [ ] Flat-fee trust-accounting structure under LSO rules (RAD-17 Q2)
 - [ ] Quebec at launch vs fast-follow after FR content approval (RAD-17 Q3)
-- [ ] Clio app is on the US instance (app.clio.com) — confirm correct for the firm's account post-pivot (RAD-17 Q6)
+- [x] Clio instance confirmed (RAD-17 Q6, 2026-07-18): firm IS on the US instance — app 36464 stays; add stopsallcalls.com redirect URIs to it at domain cutover; production should connect via a restricted Clio user (no OAuth scopes exist — token carries the user's permissions)
 - [x] RAD-18 domain + account: dedicated Resend account for stopsallcalls, `stopsallcalls.com` VERIFIED (us-east-1, DNS already in place), live send confirmed 2026-07-18 — `SAC_RESEND_API_KEY` (full-access) staged in `.devcontainer/.env`, Haven's `RESEND_API_KEY` untouched
 - [ ] RAD-18 remaining: mint a SEND-ONLY key from the dedicated account for the worker runtime (never ship the full-access key), `wrangler secret put RESEND_API_KEY` + `SAC_MAIL_FROM` var when staging/prod envs exist (human-gated; dev stays on the fake adapter), then retire `SAC_E2E_EXPOSE_CODES` from deployed config
 - [ ] Merge Factory PR #14 ("Stops All Calls" branding docs) and PR #15 (Resend email adapter) — human approval gate
