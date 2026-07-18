@@ -48,3 +48,42 @@ export function canCreateMatters(snapshot: GateSnapshot): boolean {
 export function canSendLetter(snapshot: GateSnapshot): boolean {
   return allGatesPassed(snapshot, GATES);
 }
+
+export interface GateEvaluationInput {
+  /** Evidence gate passes only when every uploaded file has a CLEAN scan. */
+  evidence: { total: number; clean: number };
+  /** Human-recorded disposition (CLIO-003); null while undecided. */
+  conflictDisposition: 'CLEAR' | 'POSSIBLE_CONFLICT' | 'CONFLICT_FOUND' | null;
+  // Phase 4 providers (RAD-6) report these; absent means PENDING, so matter
+  // creation stays blocked until identity/retainer/payment actually pass.
+  identity?: GateStatus;
+  retainer?: GateStatus;
+  payment?: GateStatus;
+  legalApproval?: GateStatus;
+}
+
+/** Evaluates the real gate snapshot from recorded facts — never from UI state. */
+export function evaluateGates(input: GateEvaluationInput): GateSnapshot {
+  const conflict: GateStatus =
+    input.conflictDisposition === 'CLEAR'
+      ? 'PASSED'
+      : input.conflictDisposition === 'CONFLICT_FOUND'
+        ? 'FAILED'
+        : input.conflictDisposition === 'POSSIBLE_CONFLICT'
+          ? 'MANUAL_REVIEW'
+          : 'PENDING';
+  const evidence: GateStatus =
+    input.evidence.total > 0 && input.evidence.clean === input.evidence.total ? 'PASSED' : 'PENDING';
+  const statuses: Record<Gate, GateStatus> = {
+    EVIDENCE: evidence,
+    CONFLICT: conflict,
+    IDENTITY: input.identity ?? 'PENDING',
+    RETAINER: input.retainer ?? 'PENDING',
+    PAYMENT: input.payment ?? 'PENDING',
+    LEGAL_APPROVAL: input.legalApproval ?? 'PENDING',
+  };
+  return Object.fromEntries(GATES.map((gate) => [gate, { gate, status: statuses[gate] }])) as Record<
+    Gate,
+    GateResult
+  >;
+}

@@ -1,7 +1,14 @@
 export type { IntakeRecord, IntakeStore, StoredAgency, SubmittedSnapshot } from './types';
 export { InMemoryIntakeStore } from './memory';
 export type { D1Like, D1PreparedLike } from './d1';
-export { D1AuthStore, D1EvidenceStore, D1IntakeStore } from './d1';
+export {
+  D1AuthStore,
+  D1ClioMappingStore,
+  D1ConflictCheckStore,
+  D1EvidenceStore,
+  D1IntakeStore,
+  D1MatterStore,
+} from './d1';
 export {
   ServiceError,
   addAgency,

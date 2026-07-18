@@ -2,18 +2,27 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import {
   D1AuthStore,
   D1ClioConnectionStore,
+  D1ClioMappingStore,
+  D1ConflictCheckStore,
   D1EvidenceStore,
   D1IntakeStore,
+  D1MatterStore,
   InMemoryAuthStore,
   InMemoryClioConnectionStore,
+  InMemoryClioMappingStore,
+  InMemoryConflictCheckStore,
   InMemoryEvidenceStore,
   InMemoryIntakeStore,
+  InMemoryMatterStore,
   SlidingWindowRateLimiter,
   type AuthStore,
   type ClioConnectionStore,
+  type ClioMappingStore,
+  type ConflictCheckStore,
   type D1Like,
   type EvidenceStore,
   type IntakeStore,
+  type MatterStore,
 } from '@stopallcalls/db';
 import {
   CloudflareTurnstileAdapter,
@@ -57,6 +66,9 @@ const TURNSTILE_KEY = Symbol.for('stopallcalls.turnstileAdapter');
 const STORAGE_KEY = Symbol.for('stopallcalls.storageAdapter');
 const SCANNER_KEY = Symbol.for('stopallcalls.malwareScanner');
 const CLIO_CONNECTION_KEY = Symbol.for('stopallcalls.clioConnectionStore');
+const CONFLICT_KEY = Symbol.for('stopallcalls.conflictCheckStore');
+const MATTER_KEY = Symbol.for('stopallcalls.matterStore');
+const CLIO_MAPPING_KEY = Symbol.for('stopallcalls.clioMappingStore');
 const DEV_CODES_KEY = Symbol.for('stopallcalls.devCodes');
 
 type Singletons = {
@@ -69,6 +81,9 @@ type Singletons = {
   [STORAGE_KEY]?: StorageAdapter;
   [SCANNER_KEY]?: MalwareScanner;
   [CLIO_CONNECTION_KEY]?: ClioConnectionStore;
+  [CONFLICT_KEY]?: ConflictCheckStore;
+  [MATTER_KEY]?: MatterStore;
+  [CLIO_MAPPING_KEY]?: ClioMappingStore;
   [DEV_CODES_KEY]?: Map<string, string>;
 };
 
@@ -128,6 +143,24 @@ export function getClioConnectionStore(): ClioConnectionStore {
   const cf = cloudflareEnv();
   g[CLIO_CONNECTION_KEY] ??= cf ? new D1ClioConnectionStore(cf.DB) : new InMemoryClioConnectionStore();
   return g[CLIO_CONNECTION_KEY];
+}
+
+export function getConflictCheckStore(): ConflictCheckStore {
+  const cf = cloudflareEnv();
+  g[CONFLICT_KEY] ??= cf ? new D1ConflictCheckStore(cf.DB) : new InMemoryConflictCheckStore();
+  return g[CONFLICT_KEY];
+}
+
+export function getMatterStore(): MatterStore {
+  const cf = cloudflareEnv();
+  g[MATTER_KEY] ??= cf ? new D1MatterStore(cf.DB) : new InMemoryMatterStore();
+  return g[MATTER_KEY];
+}
+
+export function getClioMappingStore(): ClioMappingStore {
+  const cf = cloudflareEnv();
+  g[CLIO_MAPPING_KEY] ??= cf ? new D1ClioMappingStore(cf.DB) : new InMemoryClioMappingStore();
+  return g[CLIO_MAPPING_KEY];
 }
 
 export function getEmailAdapter(): EmailAdapter {

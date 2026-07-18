@@ -1,9 +1,19 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { D1AuthStore, D1EvidenceStore, D1IntakeStore } from '../src/d1';
-import { createOrResumeIntake, saveProfile, submitIntake } from '../src/service';
+import {
+  D1AuthStore,
+  D1ClioMappingStore,
+  D1ConflictCheckStore,
+  D1EvidenceStore,
+  D1IntakeStore,
+  D1MatterStore,
+} from '../src/d1';
+import { provisionClioForIntake, recordConflictDisposition, runConflictCheck, type ProvisioningClio } from '../src/clio';
+import { addAgency, createOrResumeIntake, saveProfile, submitIntake } from '../src/service';
 import type { EvidenceRecord } from '../src/evidence';
+import type { IntakeRecord } from '../src/types';
 import type { ConsumerProfile } from '@stopallcalls/contracts';
+import type { GateSnapshot } from '@stopallcalls/domain';
 
 // Contract tests for the D1-backed stores against real D1 (miniflare SQLite)
 // with the production migrations applied. Unique consumers per test keep the
@@ -108,6 +118,146 @@ describe('D1AuthStore', () => {
     await store.insertSession(session);
     expect(await store.getSession(session.token)).toEqual(session);
     expect(await store.getSession('missing')).toBeNull();
+  });
+});
+
+const ALL_PASSED: GateSnapshot = Object.fromEntries(
+  ['EVIDENCE', 'CONFLICT', 'IDENTITY', 'RETAINER', 'PAYMENT', 'LEGAL_APPROVAL'].map((gate) => [
+    gate,
+    { gate, status: 'PASSED' },
+  ]),
+) as unknown as GateSnapshot;
+
+// Deterministic fake Clio with injectable failure, mirroring test/clio.test.ts.
+class TestClio implements ProvisioningClio {
+  contacts = new Map<string, { clioId: string; name: string; email?: string; phone?: string }>();
+  mattersByKey = new Map<string, { clioId: string; displayNumber: string }>();
+  failNextCreateMatter = false;
+  private seq = 0;
+
+  async searchContacts(query: string) {
+    const q = query.toLowerCase();
+    return [...this.contacts.values()].filter(
+      (c) => c.name.toLowerCase().includes(q) || c.email?.toLowerCase() === q,
+    );
+  }
+
+  async createContact(input: { idempotencyKey: string; firstName: string; lastName: string; email: string; phone: string }) {
+    const existing = this.contacts.get(input.idempotencyKey);
+    if (existing) return existing;
+    const contact = {
+      clioId: `contact-${++this.seq}`,
+      name: `${input.firstName} ${input.lastName}`,
+      email: input.email,
+      phone: input.phone,
+    };
+    this.contacts.set(input.idempotencyKey, contact);
+    return contact;
+  }
+
+  async createMatter(input: { idempotencyKey: string; contactClioId: string; description: string }) {
+    if (this.failNextCreateMatter) {
+      this.failNextCreateMatter = false;
+      throw new Error('simulated Clio outage');
+    }
+    const existing = this.mattersByKey.get(input.idempotencyKey);
+    if (existing) return existing;
+    const matter = { clioId: `matter-${++this.seq}`, displayNumber: `FAKE-${this.seq}` };
+    this.mattersByKey.set(input.idempotencyKey, matter);
+    return matter;
+  }
+}
+
+async function submittedD1Intake(agencies: string[]): Promise<IntakeRecord> {
+  const store = new D1IntakeStore(env.DB);
+  const key = consumer();
+  let intake = await createOrResumeIntake(store, key);
+  intake = await saveProfile(store, key, intake.id, { ...PROFILE, email: key }, intake.version);
+  for (const name of agencies) {
+    intake = await addAgency(
+      store,
+      key,
+      intake.id,
+      { agencyName: name, currency: 'CAD', contactChannels: ['PHONE'], allegations: [] },
+      intake.version,
+    );
+  }
+  return submitIntake(
+    store,
+    key,
+    intake.id,
+    { isConsumer: true, contactConfirmed: true, informationTrue: true, authorizeLetter: true },
+    intake.version,
+  );
+}
+
+describe('D1 Clio stores (RAD-5 exit criterion)', () => {
+  const stores = () => ({
+    conflicts: new D1ConflictCheckStore(env.DB),
+    matters: new D1MatterStore(env.DB),
+    mappings: new D1ClioMappingStore(env.DB),
+  });
+
+  it('round-trips a conflict check and its one-time disposition', async () => {
+    const s = stores();
+    const clio = new TestClio();
+    clio.contacts.set('seed', { clioId: 'existing-1', name: 'ABC Collections (Fictitious)' });
+    const intake = await submittedD1Intake(['ABC Collections (Fictitious)']);
+
+    const check = await runConflictCheck(s.conflicts, clio, intake);
+    expect(check.hits).toHaveLength(1);
+    // Idempotent per intake, straight from SQL.
+    expect((await runConflictCheck(s.conflicts, clio, intake)).id).toBe(check.id);
+
+    await recordConflictDisposition(s.conflicts, check.id, {
+      disposition: 'CLEAR',
+      reviewedBy: 'staff-1',
+      rationale: 'No prior relationship found.',
+    });
+    const reloaded = await s.conflicts.getByIntake(intake.id);
+    expect(reloaded?.disposition).toBe('CLEAR');
+    expect(reloaded?.reviewedBy).toBe('staff-1');
+    await expect(
+      recordConflictDisposition(s.conflicts, check.id, { disposition: 'CLEAR', reviewedBy: 'staff-2', rationale: 'x' }),
+    ).rejects.toMatchObject({ code: 'ALREADY_DECIDED' });
+  });
+
+  it('EXIT CRITERION: retries against D1 create no duplicate contacts or matters', async () => {
+    const s = stores();
+    const clio = new TestClio();
+    const intake = await submittedD1Intake(['ABC Collections (Fictitious)', 'XYZ Recovery (Fictitious)']);
+    const check = await runConflictCheck(s.conflicts, clio, intake);
+    await recordConflictDisposition(s.conflicts, check.id, {
+      disposition: 'CLEAR',
+      reviewedBy: 'staff-1',
+      rationale: 'No prior relationship found.',
+    });
+
+    // Mid-provisioning failure, then heal on retry (WF-004).
+    clio.failNextCreateMatter = true;
+    await expect(provisionClioForIntake(s, clio, intake, ALL_PASSED)).rejects.toThrow('simulated Clio outage');
+    const first = await provisionClioForIntake(s, clio, intake, ALL_PASSED);
+    const second = await provisionClioForIntake(s, clio, intake, ALL_PASSED);
+
+    expect(first.matters).toHaveLength(2);
+    expect(second.contactClioId).toBe(first.contactClioId);
+    expect(second.matters.map((m) => m.clioMatterId).sort()).toEqual(first.matters.map((m) => m.clioMatterId).sort());
+    expect(await s.matters.listByIntake(intake.id)).toHaveLength(2);
+    expect(clio.contacts.size).toBe(1);
+    expect(clio.mattersByKey.size).toBe(2);
+
+    // Persisted rows carry the ledger's display numbers.
+    const persisted = await s.matters.listByIntake(intake.id);
+    expect(persisted.every((m) => m.displayNumber.startsWith('FAKE-'))).toBe(true);
+    expect(persisted.every((m) => m.state === 'MATTER_CREATED')).toBe(true);
+  });
+
+  it('ledger insert is first-write-wins for a duplicate idempotency key', async () => {
+    const mappings = new D1ClioMappingStore(env.DB);
+    const key = `test-key-${crypto.randomUUID()}`;
+    await mappings.insert({ idempotencyKey: key, localEntity: 'matter', localId: 'a-1', clioId: 'clio-1', displayNumber: 'N-1' });
+    await mappings.insert({ idempotencyKey: key, localEntity: 'matter', localId: 'a-1', clioId: 'clio-2', displayNumber: 'N-2' });
+    expect(await mappings.get(key)).toEqual({ clioId: 'clio-1', displayNumber: 'N-1' });
   });
 });
 

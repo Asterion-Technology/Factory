@@ -1,6 +1,6 @@
-import { decryptSecret, encryptSecret } from '@stopallcalls/db';
-import { RealClioAdapter, refreshClioTokens, type ClioOAuthConfig } from '@stopallcalls/integrations';
-import { getClioConnectionStore } from '@/lib/store';
+import { decryptSecret, encryptSecret, runConflictCheck, type IntakeRecord } from '@stopallcalls/db';
+import { FakeClioAdapter, RealClioAdapter, refreshClioTokens, type ClioOAuthConfig } from '@stopallcalls/integrations';
+import { getClioConnectionStore, getConflictCheckStore } from '@/lib/store';
 
 // Clio OAuth config from env. The connect routes are additionally gated by
 // ALLOW_CLIO_CONNECT=1 — an interim admin switch until Cloudflare Access
@@ -63,4 +63,33 @@ export function getRealClioAdapter(): RealClioAdapter {
     baseUrl: getClioOAuthConfig().baseUrl,
     getAccessToken: getClioAccessToken,
   });
+}
+
+const FAKE_CLIO_KEY = Symbol.for('stopallcalls.fakeClioAdapter');
+const gClio = globalThis as { [FAKE_CLIO_KEY]?: FakeClioAdapter };
+
+/**
+ * The tenant's Clio when a connection is stored (DEV-003: real only via
+ * explicit configuration); the deterministic fake otherwise, so local dev and
+ * E2E exercise the same conflict-check path.
+ */
+export async function getClioAdapter(): Promise<RealClioAdapter | FakeClioAdapter> {
+  if (await getClioConnectionStore().get()) return getRealClioAdapter();
+  gClio[FAKE_CLIO_KEY] ??= new FakeClioAdapter();
+  return gClio[FAKE_CLIO_KEY];
+}
+
+/**
+ * CLIO-002: the conflict search runs automatically once a snapshot is frozen.
+ * Best-effort — a Clio outage never blocks or leaks to the consumer (WF-006);
+ * runConflictCheck is idempotent per intake, so staff can re-run it any time
+ * from the conflicts API.
+ */
+export async function startConflictCheck(intake: IntakeRecord): Promise<void> {
+  try {
+    await runConflictCheck(getConflictCheckStore(), await getClioAdapter(), intake);
+  } catch {
+    // No identifiers in logs (SEC): the staff conflict API surfaces the gap.
+    console.error('post-submit conflict check failed; staff re-run required');
+  }
 }
