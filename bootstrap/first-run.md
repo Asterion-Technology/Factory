@@ -228,7 +228,7 @@ Verify: `curl http://localhost:8000/api/v1/heartbeat` — should return `{"nanos
 ### LiteLLM — model routing
 
 ```bash
-docker compose -f ai/docker-compose.yml up -d
+docker compose -f config/docker-compose.yml up -d
 ```
 
 Verify: `curl http://localhost:4000/health`

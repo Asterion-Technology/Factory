@@ -15,6 +15,7 @@ services:
       LANGFUSE_SECRET_KEY: "${LANGFUSE_SECRET_KEY:-}"
       LANGFUSE_HOST: "${LANGFUSE_HOST:-https://cloud.langfuse.com}"
       LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY:-factory-local-dev}"
+      DISABLE_SCHEMA_UPDATE: "true"
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"

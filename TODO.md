@@ -160,7 +160,7 @@
   - Location: `.mcp.json` (`magic` server)
   - Suggested fix: Get an API key from the 21st.dev Magic console, `setx TWENTYFIRST_API_KEY "<key>"`, reload VS Code; the stale `MAGIC21_API_KEY` env var can be deleted
 - [ ] factory-r2 MCP credentials stale ("SignatureDoesNotMatch") — rotate the R2 API token pair (`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`) in the Cloudflare dashboard for account c35ddd6d…
-- [ ] factory-litellm healthcheck fixed to `/health/liveliness` in `ai/docker-compose.yml` + `config/docker-compose.yml` (was curling the auth-gated `/health`, so the container always showed unhealthy) — needs `docker compose -f ai/docker-compose.yml up -d` to apply; also consider consolidating the duplicate litellm compose files
+- [x] factory-litellm healthcheck fixed to `/health/liveliness`; duplicate `ai/docker-compose.yml` deleted — `config/docker-compose.yml` is the only LiteLLM compose (2026-07-18)
 - [ ] `config/repos.yaml` declares `base: "d:/REPO"` but Haven's `local_path` is an absolute `C:/Users/RDM71/REPO/Haven` — cross-drive inconsistency if tooling resolves paths against `base`
   - Location: `config/repos.yaml`
   - Suggested fix: Support absolute-path overrides explicitly in `scripts/resolve-repo.sh` docs, or normalize the manifest
