@@ -7,7 +7,7 @@
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
-    { "binding": "DB", "database_name": "stopallcalls-dev", "database_id": "PLACEHOLDER" }
+    { "binding": "DB", "database_name": "stopallcalls-dev", "database_id": "80916278-984a-4345-be81-50e7839f326f" }
   ],
   "r2_buckets": [
     { "binding": "EVIDENCE_BUCKET", "bucket_name": "stopallcalls-evidence-dev" }

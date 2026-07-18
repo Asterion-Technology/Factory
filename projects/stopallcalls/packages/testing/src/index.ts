@@ -1,1 +1,1 @@
-export { FICTITIOUS_AGENCIES, FICTITIOUS_PROFILE } from './fixtures.js';
+export { FICTITIOUS_AGENCIES, FICTITIOUS_PROFILE } from './fixtures';

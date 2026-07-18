@@ -11,6 +11,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  transpilePackages: ['@stopallcalls/contracts', '@stopallcalls/db', '@stopallcalls/domain'],
   // Monorepo lives inside the Factory repo, which has its own lockfile —
   // pin tracing to this workspace so Next doesn't infer the wrong root.
   outputFileTracingRoot: path.join(__dirname, '../../'),

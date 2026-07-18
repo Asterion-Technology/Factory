@@ -69,15 +69,33 @@ export const intakeCreateSchema = z.object({
   profile: consumerProfileSchema,
 });
 
+// API-002: mutations carry the version the client last saw.
 export const intakePatchSchema = z.object({
+  expectedVersion: z.number().int().positive(),
   profile: consumerProfileSchema.partial().optional(),
 });
 
 export const addAgencySchema = z.object({
+  expectedVersion: z.number().int().positive(),
   agency: agencyEntrySchema,
+});
+
+// SRS intake page 6: every statement must be affirmatively accepted.
+export const attestationsSchema = z.object({
+  isConsumer: z.literal(true),
+  contactConfirmed: z.literal(true),
+  informationTrue: z.literal(true),
+  authorizeLetter: z.literal(true),
+});
+
+export const intakeSubmitSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  attestations: attestationsSchema,
 });
 
 export type ConsumerProfile = z.infer<typeof consumerProfileSchema>;
 export type AgencyEntry = z.infer<typeof agencyEntrySchema>;
 export type IntakeCreate = z.infer<typeof intakeCreateSchema>;
 export type IntakePatch = z.infer<typeof intakePatchSchema>;
+export type Attestations = z.infer<typeof attestationsSchema>;
+export type IntakeSubmit = z.infer<typeof intakeSubmitSchema>;

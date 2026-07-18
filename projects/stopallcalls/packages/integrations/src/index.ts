@@ -5,16 +5,30 @@ export type {
   EmailAdapter,
   IdentityAdapter,
   IdentityStatus,
+  MalwareScanner,
   PaymentAdapter,
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
-} from './types.js';
+  StorageAdapter,
+  TurnstileAdapter,
+} from './types';
+export { CloudflareTurnstileAdapter } from './turnstile';
+export type { ClioOAuthConfig, ClioTokens } from './clio-oauth';
+export { buildClioAuthorizeUrl, exchangeClioCode, refreshClioTokens } from './clio-oauth';
+export type { RealClioConfig } from './clio';
+export { RealClioAdapter } from './clio';
+export type { R2BucketLike, R2StorageConfig } from './r2';
+export { R2StorageAdapter } from './r2';
 export {
+  FAKE_MALWARE_MARKER,
   FakeClioAdapter,
   FakeEmailAdapter,
   FakeIdentityAdapter,
+  FakeMalwareScanner,
   FakePaymentAdapter,
   FakePdfAdapter,
   FakeSignatureAdapter,
-} from './fakes.js';
+  FakeStorageAdapter,
+  FakeTurnstileAdapter,
+} from './fakes';

@@ -1,0 +1,39 @@
+// Live dev-environment config for apps/web on Workers via OpenNext.
+// infra/wrangler.web.jsonc remains the multi-env template; this file is what
+// `opennextjs-cloudflare build/preview` and (gated) deploys actually use.
+// Secrets (TURNSTILE_SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are
+// Wrangler secrets — never listed here.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stopallcalls-web-dev",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "vars": {
+    // Flips lib/store.ts from in-memory fakes to D1/R2-backed implementations.
+    "SAC_BACKEND": "cloudflare",
+    "SAC_ACCOUNT_ID": "0440a74c4fc231f28b6bb856ebe9396a",
+    "SAC_EVIDENCE_BUCKET_NAME": "stopallcalls-evidence-dev",
+    // DEV ENVIRONMENT ONLY (approved 2026-07-16): exposes one-time codes via
+    // /api/dev/last-code because no real email provider is wired yet. MUST be
+    // removed before any staging/production config exists; replaced by Resend.
+    "SAC_E2E_EXPOSE_CODES": "1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stopallcalls-dev",
+      "database_id": "80916278-984a-4345-be81-50e7839f326f",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "EVIDENCE_BUCKET", "bucket_name": "stopallcalls-evidence-dev" },
+    { "binding": "DOCUMENTS_BUCKET", "bucket_name": "stopallcalls-documents-dev" }
+  ],
+  "queues": {
+    "producers": [{ "binding": "JOBS_QUEUE", "queue": "stopallcalls-jobs-dev" }]
+  },
+  "observability": { "enabled": true }
+}

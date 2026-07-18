@@ -9,11 +9,14 @@ import type {
   EmailAdapter,
   IdentityAdapter,
   IdentityStatus,
+  MalwareScanner,
   PaymentAdapter,
   PaymentStatus,
   PdfAdapter,
   SignatureAdapter,
-} from './types.js';
+  StorageAdapter,
+  TurnstileAdapter,
+} from './types';
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
@@ -206,6 +209,52 @@ export class FakeEmailAdapter implements EmailAdapter {
       messageId: result.messageId,
     });
     return result;
+  }
+}
+
+export class FakeTurnstileAdapter implements TurnstileAdapter {
+  // 'turnstile-fail' lets tests exercise the rejection path deterministically.
+  async verify(input: { token: string; remoteIp?: string }): Promise<boolean> {
+    return input.token.length > 0 && input.token !== 'turnstile-fail';
+  }
+}
+
+export class FakeStorageAdapter implements StorageAdapter {
+  private objects = new Map<string, { bytes: Uint8Array; mimeType: string }>();
+
+  // The dev upload sink route resolves this URL back to putObject below.
+  async createSignedUploadUrl(input: {
+    key: string;
+    mimeType: string;
+    maxSizeBytes: number;
+    expiresSeconds: number;
+  }): Promise<{ url: string; method: 'PUT' }> {
+    return { url: `/api/uploads/${input.key}`, method: 'PUT' };
+  }
+
+  async getObject(key: string): Promise<{ bytes: Uint8Array; mimeType: string } | null> {
+    return this.objects.get(key) ?? null;
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    this.objects.delete(key);
+  }
+
+  // Dev-sink hook, not part of StorageAdapter: real uploads go directly to R2.
+  putObject(key: string, bytes: Uint8Array, mimeType: string): void {
+    this.objects.set(key, { bytes, mimeType });
+  }
+}
+
+// Flags any payload containing the marker below — a stand-in for a real
+// scanning service, deliberately NOT the industry EICAR string so repo files
+// and test fixtures never trip actual antivirus tooling.
+export const FAKE_MALWARE_MARKER = 'FAKE-MALWARE-SIGNATURE';
+
+export class FakeMalwareScanner implements MalwareScanner {
+  async scan(bytes: Uint8Array): Promise<'CLEAN' | 'INFECTED'> {
+    const text = new TextDecoder().decode(bytes);
+    return text.includes(FAKE_MALWARE_MARKER) ? 'INFECTED' : 'CLEAN';
   }
 }
 

@@ -52,9 +52,11 @@
 ### StopAllCalls (projects/stopallcalls — AST-167 / AST-168)
 
 #### Deferred from Phase 0 scaffold PR
-- [ ] Cloudflare resource provisioning (D1, R2 buckets, Queues, Access, Turnstile) — `infra/wrangler.*.jsonc` hold placeholder IDs
-  - Location: `projects/stopallcalls/infra/`
-  - Suggested fix: Provision per environment (dev/preview/staging/prod, OPS-001) after human approval of the Cloudflare account/secrets; fill IDs and add `wrangler`/`@opennextjs/cloudflare` devDependencies at that point
+- [x] Cloudflare dev provisioning (2026-07-16, account `0440a74c…` radical-disruptive): D1 `stopallcalls-dev` created + schema applied (29 tables), queues `stopallcalls-jobs-dev`/`-dlq-dev` created, Turnstile widget `stopallcalls-dev` created (sitekey/secret in `.devcontainer/.env`), real D1 id in `infra/wrangler.*.jsonc`, `wrangler` devDependency added
+- [x] R2 enabled + private buckets `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` created (location hint enam, 2026-07-16) — matches `infra/wrangler.*.jsonc` bindings
+- [x] Real Turnstile wired (2026-07-16): `CloudflareTurnstileAdapter` + client widget, env-switched (`apps/web/.env.local` locally; E2E pins the fake); `wrangler secret put TURNSTILE_SECRET_KEY` at deploy remains human-gated
+- [ ] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated)
+- [ ] Cloudflare Access (staff SSO/MFA) not yet configured — needed by Phase 2 evidence review; token lacks the Access scope (add when needed)
 - [ ] Factory CI does not run StopAllCalls checks (pnpm typecheck/lint/test) — `.github/workflows/` changes are human-gated
   - Location: `.github/workflows/ci.yml`
   - Suggested fix: Add a path-filtered job for `projects/stopallcalls/**` with human approval of the workflow change
@@ -62,6 +64,39 @@
   - Location: `projects/stopallcalls/docs/`
   - Suggested fix: Author with security review before Phase 2 (evidence uploads) begins
 - [ ] `packages/ui` intentionally not scaffolded (SRS §15: no unused complexity) — create when Phase 1 needs shared components
+ 
+#### Phase 1 remaining (RAD-3, formerly AST-169)
+- [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
+- [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
+- [x] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion) — 10 passing (`e2e/intake.spec.ts`)
+- [ ] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx`
+- [ ] Real email provider adapter for verification codes — `FakeEmailAdapter` is dev-only; wire Resend (or chosen provider) behind `EmailAdapter` at provisioning
+- [ ] Durable rate limiting — `SlidingWindowRateLimiter` is per-instance in-memory; move to Durable Object or D1 counters at provisioning
+- [ ] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned
+- [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
+- [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
+
+#### Linear workspace migration
+- [x] StopAllCalls issues recreated in the radical-disruption workspace's **Cease** project as RAD-8..RAD-16 (2026-07-16; key stored as `RADICAL_LINEAR_API_KEY` in `.devcontainer/.env`); BUILD_PLAN links and `config/repos.yaml` updated
+- [ ] Archive or delete the interim `radical-disruption` team (RAD-1..9) inside asterion1971 — duplicates of the new-workspace issues; deleting a team archives its issues, so needs a human call
+- [ ] Factory Linear MCP still auths to asterion1971 — day-to-day StopAllCalls issue updates need the curl/`RADICAL_LINEAR_API_KEY` path (or re-point the MCP) until switched
+
+#### Phase 2 — Evidence (RAD-11, started 2026-07-16)
+- [x] Upload pipeline: validated request → signed-URL PUT → magic-byte/MIME + size verification → sha256 → quarantine → scan → CLEAN/INFECTED, chain-of-custody events, soft removal; wizard "Proof upload" step; 12 unit + 4 E2E tests
+- [x] Real R2 storage adapter (2026-07-16): `R2StorageAdapter` — SigV4 query-presigned PUT (verified live against `stopallcalls-evidence-dev`, opt-in test `r2.live.test.ts`) + binding-backed get/delete; swapped in at deploy wiring
+- [x] D1-backed stores (2026-07-16): `D1IntakeStore`/`D1AuthStore`/`D1EvidenceStore` + `migrations/0001_baseline.sql`, tested against real D1 via vitest-pool-workers (`pnpm --filter @stopallcalls/db test:d1`; pinned 0.12.x — 0.13+ needs vitest 4)
+- [x] Remote D1 re-baselined (2026-07-16, human-approved): all 29 empty draft tables dropped, `0001_baseline.sql` applied via `wrangler d1 migrations apply` (tracking now active; future changes = new numbered migration files in `packages/db/migrations/`)
+- [x] D1/R2 wired into `apps/web` (2026-07-16): `SAC_BACKEND=cloudflare` (wrangler var) switches `lib/store.ts` to D1 stores + R2 presigning via `getCloudflareContext()`; fakes remain the default for dev/tests. `@opennextjs/cloudflare` + `apps/web/wrangler.jsonc` (real dev config) + `open-next.config.ts` added
+- [ ] BLOCKED ON USER: `pnpm --filter @stopallcalls/web build:cf` fails with EPERM — Next standalone tracing needs symlinks; enable Windows **Developer Mode** (Settings → System → For developers), then build + `wrangler deploy --dry-run` can be verified
+- [x] Secrets pushed to `stopallcalls-web-dev` draft worker (2026-07-16, human-approved): `TURNSTILE_SECRET_KEY`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (derived per R2 S3-auth docs from the API token); `SAC_E2E_EXPOSE_CODES=1` set as a DEV-ONLY var in `apps/web/wrangler.jsonc` until Resend is wired
+- [ ] Mint a dedicated R2-scoped API token for runtime presigning (current dev signing pair derives from the broad provisioning token — works, but not least-privilege)
+- [x] Symlink blocker solved in-repo (2026-07-16): `nodeLinker: hoisted` in `pnpm-workspace.yaml` — flat node_modules, no symlinks, so Next standalone tracing works with Developer Mode off on any machine. `build:cf` ✅ and `wrangler deploy --dry-run` ✅ (all bindings resolve; 901 KB gzip); full suite re-verified under the hoisted layout. NOTE: after changing nodeLinker, delete ALL node_modules (root + every package) before `pnpm install` — stale per-package bin shims break vitest otherwise
+- [x] DEPLOYED (2026-07-16, human-approved): https://stopallcalls-web-dev.rick-044.workers.dev — version 356f0485; workers.dev hostname added to the Turnstile widget domains. Smoke-verified: landing 200; server-side Turnstile enforcement live (fake token → 403 from real siteverify); D1 read path live (bogus session cookie → clean `{email:null}`); real widget renders and correctly challenges headless automation (full-journey automation blocked BY the bot protection — by design)
+- [ ] Human click-through of the live dev site pending: the wizard now shows the login code on-screen (dev mode); auth → profile → agencies verified live by the user 2026-07-17; upload was CORS-blocked, fixed by setting the R2 CORS policy on `stopallcalls-evidence-dev` (allowed origin = the workers.dev host, PUT, content-type) — retry upload → submit to finish
+- [ ] When staging/prod origins exist: add them to the R2 bucket CORS rule (and the Turnstile widget domains) — both are per-hostname allowlists
+- [ ] Scan via `stopallcalls-jobs-dev` queue consumer instead of inline (interface `FinalizeDeps` unchanged); real malware scanning service selection pending
+- [ ] Staff evidence-review workspace + sufficiency rule (EVD-009/EVD-010) and credit-report handling (EVD-008) — needs Cloudflare Access (staff SSO) first
+- [ ] Attestation-only path (no uploads) flagged for lawyer review — SRS gate alternative, needs product-owner wording
 
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture

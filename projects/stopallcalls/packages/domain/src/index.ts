@@ -5,7 +5,13 @@ export {
   type IntakeState,
   type MatterState,
   type TransitionRecord,
-} from './states.js';
+} from './states';
+export {
+  buildConflictSearchPackage,
+  type ConflictSearchInput,
+  type ConflictSearchTerm,
+  type ConflictTermType,
+} from './conflict';
 export {
   GATES,
   HUMAN_ONLY_GATES,
@@ -17,4 +23,4 @@ export {
   type GateResult,
   type GateSnapshot,
   type GateStatus,
-} from './gates.js';
+} from './gates';
