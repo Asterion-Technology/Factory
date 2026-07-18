@@ -10,6 +10,13 @@ export {
   D1MatterStore,
 } from './d1';
 export {
+  D1IdentityStore,
+  D1OrderStore,
+  D1PaymentStore,
+  D1RetainerSignatureStore,
+  D1RetainerVersionStore,
+} from './d1-phase4';
+export {
   ServiceError,
   addAgency,
   createOrResumeIntake,

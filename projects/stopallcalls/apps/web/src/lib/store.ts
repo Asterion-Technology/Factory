@@ -5,8 +5,13 @@ import {
   D1ClioMappingStore,
   D1ConflictCheckStore,
   D1EvidenceStore,
+  D1IdentityStore,
   D1IntakeStore,
   D1MatterStore,
+  D1OrderStore,
+  D1PaymentStore,
+  D1RetainerSignatureStore,
+  D1RetainerVersionStore,
   InMemoryAuthStore,
   InMemoryClioConnectionStore,
   InMemoryClioMappingStore,
@@ -194,30 +199,34 @@ export function getClioMappingStore(): ClioMappingStore {
   return g[CLIO_MAPPING_KEY];
 }
 
-// Phase 4 stores. In-memory for now on every backend — D1 versions arrive
-// with migration 0003 (see TODO.md); the getters keep call sites stable.
+// Phase 4 stores (migration 0003), same env switch as the rest.
 export function getOrderStore(): OrderStore {
-  g[ORDER_KEY] ??= new InMemoryOrderStore();
+  const cf = cloudflareEnv();
+  g[ORDER_KEY] ??= cf ? new D1OrderStore(cf.DB) : new InMemoryOrderStore();
   return g[ORDER_KEY];
 }
 
 export function getPaymentStore(): PaymentStore {
-  g[PAYMENT_KEY] ??= new InMemoryPaymentStore();
+  const cf = cloudflareEnv();
+  g[PAYMENT_KEY] ??= cf ? new D1PaymentStore(cf.DB) : new InMemoryPaymentStore();
   return g[PAYMENT_KEY];
 }
 
 export function getIdentityStore(): IdentityStore {
-  g[IDENTITY_KEY] ??= new InMemoryIdentityStore();
+  const cf = cloudflareEnv();
+  g[IDENTITY_KEY] ??= cf ? new D1IdentityStore(cf.DB) : new InMemoryIdentityStore();
   return g[IDENTITY_KEY];
 }
 
 export function getRetainerVersionStore(): RetainerVersionStore {
-  g[RETAINER_VERSION_KEY] ??= new InMemoryRetainerVersionStore();
+  const cf = cloudflareEnv();
+  g[RETAINER_VERSION_KEY] ??= cf ? new D1RetainerVersionStore(cf.DB) : new InMemoryRetainerVersionStore();
   return g[RETAINER_VERSION_KEY];
 }
 
 export function getRetainerSignatureStore(): RetainerSignatureStore {
-  g[RETAINER_SIGNATURE_KEY] ??= new InMemoryRetainerSignatureStore();
+  const cf = cloudflareEnv();
+  g[RETAINER_SIGNATURE_KEY] ??= cf ? new D1RetainerSignatureStore(cf.DB) : new InMemoryRetainerSignatureStore();
   return g[RETAINER_SIGNATURE_KEY];
 }
 

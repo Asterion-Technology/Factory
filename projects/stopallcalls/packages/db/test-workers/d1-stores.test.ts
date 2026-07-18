@@ -8,7 +8,24 @@ import {
   D1IntakeStore,
   D1MatterStore,
 } from '../src/d1';
+import {
+  D1IdentityStore,
+  D1OrderStore,
+  D1PaymentStore,
+  D1RetainerSignatureStore,
+  D1RetainerVersionStore,
+} from '../src/d1-phase4';
 import { provisionClioForIntake, recordConflictDisposition, runConflictCheck, type ProvisioningClio } from '../src/clio';
+import { createOrderForIntake } from '../src/orders';
+import { applyPaymentWebhook, confirmEmtPayment, startEmtPayment, startHostedPayment } from '../src/payments';
+import { applyIdentityWebhook, recordIdentityOverride, startIdentityVerification } from '../src/identity';
+import {
+  completeRetainerSignature,
+  publishRetainerVersion,
+  requestRetainerSignature,
+} from '../src/retainer';
+import { FakeIdentityAdapter, FakePaymentAdapter, FakeSignatureAdapter } from '@stopallcalls/integrations';
+import type { PricingConfig } from '@stopallcalls/domain';
 import { addAgency, createOrResumeIntake, saveProfile, submitIntake } from '../src/service';
 import type { EvidenceRecord } from '../src/evidence';
 import type { IntakeRecord } from '../src/types';
@@ -258,6 +275,96 @@ describe('D1 Clio stores (RAD-5 exit criterion)', () => {
     await mappings.insert({ idempotencyKey: key, localEntity: 'matter', localId: 'a-1', clioId: 'clio-1', displayNumber: 'N-1' });
     await mappings.insert({ idempotencyKey: key, localEntity: 'matter', localId: 'a-1', clioId: 'clio-2', displayNumber: 'N-2' });
     expect(await mappings.get(key)).toEqual({ clioId: 'clio-1', displayNumber: 'N-1' });
+  });
+});
+
+const PRICING: PricingConfig = { baseFeeCents: 9900, perAgencyFeeCents: 2500, taxRateBps: 1300, currency: 'CAD' };
+const SIG = 'fake-valid-signature';
+
+describe('D1 Phase 4 stores (RAD-13)', () => {
+  it('orders: idempotent per intake, UNIQUE(intake_id) enforced in SQL', async () => {
+    const orders = new D1OrderStore(env.DB);
+    const intake = await submittedD1Intake(['A (Fictitious)', 'B (Fictitious)']);
+    const order = await createOrderForIntake(orders, PRICING, intake);
+    expect((await createOrderForIntake(orders, PRICING, intake)).id).toBe(order.id);
+    await expect(
+      orders.insert({ ...order, id: crypto.randomUUID() }),
+    ).rejects.toThrow(/UNIQUE/i);
+    expect((await orders.getByIntake(intake.id))?.pricing.items).toHaveLength(3);
+  });
+
+  it('payments: EXIT CRITERION webhook replay applies exactly once against D1', async () => {
+    const orders = new D1OrderStore(env.DB);
+    const payments = new D1PaymentStore(env.DB);
+    const adapter = new FakePaymentAdapter();
+    const intake = await submittedD1Intake(['A (Fictitious)']);
+    const order = await createOrderForIntake(orders, PRICING, intake);
+    const { payment } = await startHostedPayment(payments, adapter, order, 'CARD');
+
+    const evt = { eventId: 'd1-evt-1', providerRef: payment.providerRef!, status: 'AUTHORIZED' as const };
+    const raw = JSON.stringify(evt);
+    expect((await applyPaymentWebhook(payments, adapter, raw, SIG, evt)).state).toBe('AUTHORIZED');
+    const replay = await applyPaymentWebhook(payments, adapter, raw, SIG, evt);
+    expect(replay.state).toBe('AUTHORIZED');
+    expect(replay.processedEventIds).toEqual(['d1-evt-1']);
+    const reloaded = await payments.getByProviderRef(payment.providerRef!);
+    expect(reloaded?.processedEventIds).toEqual(['d1-evt-1']);
+  });
+
+  it('payments: EMT confirmation persists actor and state', async () => {
+    const orders = new D1OrderStore(env.DB);
+    const payments = new D1PaymentStore(env.DB);
+    const intake = await submittedD1Intake(['A (Fictitious)']);
+    const order = await createOrderForIntake(orders, PRICING, intake);
+    const payment = await startEmtPayment(payments, order);
+    await confirmEmtPayment(payments, payment.id, { id: 'billing-1', role: 'BILLING' });
+    const reloaded = await payments.getById(payment.id);
+    expect(reloaded?.state).toBe('EMT_CONFIRMED');
+    expect(reloaded?.emtConfirmedBy).toBe('billing-1');
+  });
+
+  it('identity: webhook + audited override round-trip through D1', async () => {
+    const store = new D1IdentityStore(env.DB);
+    const adapter = new FakeIdentityAdapter();
+    const intake = await submittedD1Intake(['A (Fictitious)']);
+    const { record } = await startIdentityVerification(store, adapter, intake);
+    const evt = {
+      eventId: 'd1-idv-1',
+      providerRef: record.providerRef,
+      status: 'MISMATCH' as const,
+      checks: { name: 'MISMATCH' as const },
+    };
+    await applyIdentityWebhook(store, adapter, JSON.stringify(evt), SIG, evt);
+    const overridden = await recordIdentityOverride(store, record.id, {
+      overriddenBy: 'staff-1',
+      reason: 'Manually reviewed; alias confirmed.',
+    });
+    expect(overridden.status).toBe('OVERRIDDEN');
+    const reloaded = await store.getByIntake(intake.id);
+    expect(reloaded?.overrideBy).toBe('staff-1');
+    expect(reloaded?.checks).toEqual({ name: 'MISMATCH' });
+    expect(reloaded?.processedEventIds).toEqual(['d1-idv-1']);
+  });
+
+  it('retainer: publish → request → sign → evidence persists in D1', async () => {
+    const versions = new D1RetainerVersionStore(env.DB);
+    const signatures = new D1RetainerSignatureStore(env.DB);
+    const adapter = new FakeSignatureAdapter();
+    const intake = await submittedD1Intake(['A (Fictitious)']);
+    const hash = 'c'.repeat(64);
+    await publishRetainerVersion(versions, {
+      jurisdiction: 'CA',
+      effectiveDate: '2026-07-01',
+      contentHash: hash,
+      storageKey: `retainers/ca/${crypto.randomUUID()}.pdf`,
+    });
+    const { record } = await requestRetainerSignature({ versions, signatures }, adapter, intake);
+    expect(record.contentHash).toBe(hash);
+    adapter.sign(record.providerEnvelopeId);
+    const signed = await completeRetainerSignature(signatures, adapter, intake.id);
+    const reloaded = await signatures.getByEnvelope(record.providerEnvelopeId);
+    expect(reloaded?.signedAt).toBe(signed.signedAt);
+    expect(reloaded?.evidence?.contentHash).toBe(hash);
   });
 });
 
