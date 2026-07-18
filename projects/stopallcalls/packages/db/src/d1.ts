@@ -83,6 +83,22 @@ export class D1IntakeStore implements IntakeStore {
     return row ? toIntake(row) : null;
   }
 
+  async listForStaff(filter?: { state?: IntakeRecord['state']; limit?: number }): Promise<IntakeRecord[]> {
+    const limit = Math.min(filter?.limit ?? 100, 500);
+    const stmt = filter?.state
+      ? this.db
+          .prepare(
+            `SELECT * FROM intakes WHERE state = ? AND deleted_at IS NULL
+             ORDER BY updated_at DESC LIMIT ?`,
+          )
+          .bind(filter.state, limit)
+      : this.db
+          .prepare('SELECT * FROM intakes WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?')
+          .bind(limit);
+    const { results } = await stmt.all<IntakeRow>();
+    return (results ?? []).map(toIntake);
+  }
+
   async findActiveByConsumer(consumerKey: string): Promise<IntakeRecord | null> {
     const row = await this.db
       .prepare(
