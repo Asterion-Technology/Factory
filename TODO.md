@@ -70,7 +70,8 @@
 - [ ] Flat-fee trust-accounting structure under LSO rules (RAD-17 Q2)
 - [ ] Quebec at launch vs fast-follow after FR content approval (RAD-17 Q3)
 - [ ] Clio app is on the US instance (app.clio.com) — confirm correct for the firm's account post-pivot (RAD-17 Q6)
-- [ ] RAD-18 remaining after adapter merge: create/verify stopsallcalls.com in Resend (account decision: shared Factory vs dedicated firm account), add SPF/DKIM/DMARC to the Cloudflare zone (blocked on zone-scoped token in .devcontainer/.env), wrangler secret put RESEND_API_KEY + SAC_MAIL_FROM var (human-gated), then retire SAC_E2E_EXPOSE_CODES from deployed config
+- [x] RAD-18 domain + account: dedicated Resend account for stopsallcalls, `stopsallcalls.com` VERIFIED (us-east-1, DNS already in place), live send confirmed 2026-07-18 — `SAC_RESEND_API_KEY` (full-access) staged in `.devcontainer/.env`, Haven's `RESEND_API_KEY` untouched
+- [ ] RAD-18 remaining: mint a SEND-ONLY key from the dedicated account for the worker runtime (never ship the full-access key), `wrangler secret put RESEND_API_KEY` + `SAC_MAIL_FROM` var when staging/prod envs exist (human-gated; dev stays on the fake adapter), then retire `SAC_E2E_EXPOSE_CODES` from deployed config
 - [ ] Verify zone-scoped Cloudflare token (read-only zone check) once owner adds CLOUDFLARE_ZONE_API_TOKEN
 - [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
 - [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
