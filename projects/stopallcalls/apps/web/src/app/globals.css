@@ -297,3 +297,5 @@ legend {
 .staff-dl dt { font-weight: 600; margin-top: 0.5rem; }
 .staff-dl dd { margin: 0; }
 .staff-metric { display: inline-block; margin: 0 1.5rem 0.75rem 0; }
+.staff-letter { white-space: pre-wrap; background: #faf8f4; border: 1px solid #d8d4cc; border-radius: 8px; padding: 1rem; font-size: 0.85rem; max-height: 28rem; overflow-y: auto; }
+.staff-prior { opacity: 0.65; }
