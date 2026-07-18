@@ -72,6 +72,9 @@
 - [ ] Clio app is on the US instance (app.clio.com) — confirm correct for the firm's account post-pivot (RAD-17 Q6)
 - [x] RAD-18 domain + account: dedicated Resend account for stopsallcalls, `stopsallcalls.com` VERIFIED (us-east-1, DNS already in place), live send confirmed 2026-07-18 — `SAC_RESEND_API_KEY` (full-access) staged in `.devcontainer/.env`, Haven's `RESEND_API_KEY` untouched
 - [ ] RAD-18 remaining: mint a SEND-ONLY key from the dedicated account for the worker runtime (never ship the full-access key), `wrangler secret put RESEND_API_KEY` + `SAC_MAIL_FROM` var when staging/prod envs exist (human-gated; dev stays on the fake adapter), then retire `SAC_E2E_EXPOSE_CODES` from deployed config
+- [ ] Merge Factory PR #14 ("Stops All Calls" branding docs) and PR #15 (Resend email adapter) — human approval gate
+- [ ] Resume RAD-15 staff portal (UI-002..006) on `feature/RAD-15-staff-portal` — include the RAD-17 market-switch admin screen (markets enable/disable, audited)
+- [ ] Worker custom domains on stopsallcalls.com (needs zone token): app/staging hostnames → workers, then update Turnstile widget domains, Cloudflare Access apps, R2 CORS origins, Clio OAuth redirect URIs
 - [ ] Verify zone-scoped Cloudflare token (read-only zone check) once owner adds CLOUDFLARE_ZONE_API_TOKEN
 - [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
 - [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
