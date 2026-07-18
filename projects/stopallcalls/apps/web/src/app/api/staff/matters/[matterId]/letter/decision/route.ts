@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { decideLetterApproval, submitLetterForReview } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
+import { recordAudit } from '@/lib/audit';
 import { clioConnectEnabled } from '@/lib/clio';
 import { getApprovalStore, getLetterVersionStore, getMatterStore } from '@/lib/store';
 
@@ -46,6 +47,14 @@ export async function POST(req: NextRequest) {
         ...(body.reason ? { reason: body.reason } : {}),
       },
     );
+    await recordAudit({
+      actorId: body.decidedBy,
+      actorType: 'STAFF',
+      action: `LETTER_${body.decision}`,
+      entity: 'letter_version',
+      entityId: body.letterVersionId,
+      detail: { contentHash: body.contentHash },
+    });
     return jsonOk(result);
   });
 }

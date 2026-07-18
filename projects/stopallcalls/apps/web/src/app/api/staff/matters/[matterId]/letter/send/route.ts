@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { sendApprovedLetter } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
+import { recordAudit } from '@/lib/audit';
 import { clioConnectEnabled, getClioAdapter } from '@/lib/clio';
 import { computeGatesForMatter } from '@/lib/gates';
 import {
@@ -48,6 +49,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
         ...(process.env.SAC_CLIENT_BCC ? { bccClient: process.env.SAC_CLIENT_BCC } : {}),
       },
     );
+    await recordAudit({
+      actorType: 'STAFF',
+      action: 'LETTER_SENT',
+      entity: 'delivery',
+      entityId: delivery.id,
+      detail: { letterVersionId: body.letterVersionId, artifactHash: delivery.artifactHash },
+    });
     return jsonOk({
       delivery: {
         id: delivery.id,

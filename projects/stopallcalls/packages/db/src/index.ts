@@ -147,6 +147,15 @@ export {
   recordDeliveryEvent,
   sendApprovedLetter,
 } from './delivery';
+export type {
+  AppendAuditInput,
+  AuditActorType,
+  AuditChainVerdict,
+  AuditEventRecord,
+  AuditStore,
+} from './audit';
+export { InMemoryAuditStore, appendAuditEvent, verifyAuditChain } from './audit';
+export { D1AuditStore } from './d1-audit';
 export type { AuthChallenge, AuthDeps, AuthStore, ConsumerSession, StartVerificationDeps } from './auth';
 export {
   AUTH_LIMITS,

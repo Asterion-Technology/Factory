@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { emtConfirmRequestSchema } from '@stopallcalls/contracts';
 import { confirmEmtPayment } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
+import { recordAudit } from '@/lib/audit';
 import { clioConnectEnabled } from '@/lib/clio';
 import { getPaymentStore } from '@/lib/store';
 
@@ -17,6 +18,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pay
     const payment = await confirmEmtPayment(getPaymentStore(), paymentId, {
       id: body.confirmedBy,
       role: 'BILLING',
+    });
+    await recordAudit({
+      actorId: body.confirmedBy,
+      actorType: 'STAFF',
+      action: 'EMT_PAYMENT_CONFIRMED',
+      entity: 'payment',
+      entityId: payment.id,
     });
     return jsonOk({ payment: { id: payment.id, state: payment.state, emtConfirmedBy: payment.emtConfirmedBy } });
   });

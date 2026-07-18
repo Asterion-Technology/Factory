@@ -41,13 +41,16 @@ import {
 } from '@stopallcalls/db';
 import type {
   ApprovalStore,
+  AuditStore,
   DeliveryStore,
   LetterTemplateStore,
   LetterVersionStore,
   TaskStore,
 } from '@stopallcalls/db';
 import {
+  D1AuditStore,
   InMemoryApprovalStore,
+  InMemoryAuditStore,
   InMemoryDeliveryStore,
   InMemoryLetterTemplateStore,
   InMemoryLetterVersionStore,
@@ -290,6 +293,17 @@ export function getTaskStore(): TaskStore {
 export function getPdfAdapter(): FakePdfAdapter {
   g5[PDF_ADAPTER_KEY] ??= new FakePdfAdapter();
   return g5[PDF_ADAPTER_KEY];
+}
+
+// Phase 6 (DATA-004): append-only audit trail; audit_events is in the baseline
+// schema, so the D1 store needs no migration.
+const AUDIT_KEY = Symbol.for('stopallcalls.auditStore');
+const g6 = globalThis as { [AUDIT_KEY]?: AuditStore };
+
+export function getAuditStore(): AuditStore {
+  const cf = cloudflareEnv();
+  g6[AUDIT_KEY] ??= cf ? new D1AuditStore(cf.DB) : new InMemoryAuditStore();
+  return g6[AUDIT_KEY];
 }
 
 // Phase 4 provider adapters: fakes only (DEV-003) — real provider selection

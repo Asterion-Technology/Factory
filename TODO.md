@@ -130,6 +130,14 @@
 - [ ] Email webhook uses a shared-secret header — replace with the real provider's signature scheme (e.g. Resend/svix) when the email provider lands
 - [ ] Follow-up scheduling beyond bounce tasks (DLV-007 full: N-day no-response follow-ups) — needs the jobs queue consumer
 
+#### Phase 6 — Operations (RAD-15, started 2026-07-18)
+- [x] Append-only tamper-evident audit trail (DATA-004): hash-chained events (each hash covers content + previous hash), no update/delete path by construction, chain verification detecting edit/deletion/reordering/forgery; D1AuditStore on the baseline audit_events table (no migration needed); wired into conflict disposition, EMT confirm, identity override, letter decision, letter send; staff GET /api/staff/audit with live chain verdict
+- [ ] Consumer dashboard + staff portal UI (UI-001..006) — API-first so far; screens unbuilt
+- [ ] Ops dashboards (queue depth, dead letters, provider latency, Clio sync lag, payment anomalies, delivery failures — OPS-004), PII-free alerts + runbooks (OPS-005/006), scheduled reconciliation (OPS-007)
+- [ ] Audit export + retention/deletion workflows (SEC-011, SEC-014/015)
+- [ ] Follow-up scheduling + optional Phase 2 invitation (DLV-007/008) — needs the jobs queue consumer (still a stub)
+- [ ] Security review pass (TST-005: authz matrix, IDOR, CSRF, XSS, upload attacks, webhook replay, sensitive-log scan) + WCAG 2.2 AA (TST-006) — the production-readiness signoff
+
 #### Product owner / counsel clarification needed (SRS §16 open decisions)
 - [ ] All SRS §16 defaults require confirmation before production: operating jurisdiction, evidence rule, payment timing (letter before/after payment differs between AST-167 narrative and SRS default), identity/credit-report retention, client BCC policy, Phase 2 solicitation email rules, Clio tenant conflict-check capabilities, database region/residency, AI provider posture
   - Location: `projects/stopallcalls/docs/BUILD_PLAN.md` (open decisions table)

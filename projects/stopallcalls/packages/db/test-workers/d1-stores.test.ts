@@ -368,6 +368,32 @@ describe('D1 Phase 4 stores (RAD-13)', () => {
   });
 });
 
+describe('D1AuditStore (DATA-004)', () => {
+  it('appends, preserves chain order, and the full chain verifies', async () => {
+    const { appendAuditEvent, verifyAuditChain } = await import('../src/audit');
+    const { D1AuditStore } = await import('../src/d1-audit');
+    const store = new D1AuditStore(env.DB);
+    for (let i = 0; i < 3; i++) {
+      await appendAuditEvent(store, {
+        actorId: `staff-${i}`,
+        actorType: 'STAFF',
+        action: 'D1_TEST_ACTION',
+        entity: 'test_entity',
+        entityId: `d1-entity-${i}`,
+      });
+    }
+    const events = await store.list();
+    expect(events.length).toBeGreaterThanOrEqual(3);
+    expect(await verifyAuditChain(events)).toMatchObject({ valid: true });
+    const last = await store.getLast();
+    expect(last?.eventHash).toBe(events.at(-1)?.eventHash);
+    // Limited listing keeps chain order (oldest → newest within the window).
+    const window = await store.list(2);
+    expect(window).toHaveLength(2);
+    expect(window[1]?.eventHash).toBe(last?.eventHash);
+  });
+});
+
 describe('D1EvidenceStore', () => {
   it('round-trips evidence with custody JSON and key lookup', async () => {
     const intakeStore = new D1IntakeStore(env.DB);
