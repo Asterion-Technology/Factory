@@ -1,0 +1,39 @@
+// STAGING config (OPS-001, provisioned 2026-07-18 with owner approval) —
+// UAT surface on staging.stopsallcalls.com. Differences from dev, on purpose:
+// no SAC_E2E_EXPOSE_CODES (login codes arrive by real email via Resend), and
+// ALLOW_CLIO_CONNECT=1 is a TEMPORARY UAT gate for the staff portal until
+// Cloudflare Access is configured (CF_ACCESS_AUD) — remove after UAT.
+// Secrets via wrangler secret put --config wrangler.staging.jsonc:
+//   TURNSTILE_SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+//   RESEND_API_KEY (staging-scoped; rotate to a send-only key before prod).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stopallcalls-web-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "vars": {
+    "SAC_BACKEND": "cloudflare",
+    "SAC_ACCOUNT_ID": "0440a74c4fc231f28b6bb856ebe9396a",
+    "SAC_EVIDENCE_BUCKET_NAME": "stopallcalls-evidence-staging",
+    "SAC_MAIL_FROM": "Stops All Calls <no-reply@stopsallcalls.com>",
+    "ALLOW_CLIO_CONNECT": "1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "stopallcalls-staging",
+      "database_id": "febcfede-f460-4fcf-babb-2b469d2effbc",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "EVIDENCE_BUCKET", "bucket_name": "stopallcalls-evidence-staging" },
+    { "binding": "DOCUMENTS_BUCKET", "bucket_name": "stopallcalls-documents-staging" }
+  ],
+  "queues": {
+    "producers": [{ "binding": "JOBS_QUEUE", "queue": "stopallcalls-jobs-staging" }]
+  },
+  "observability": { "enabled": true }
+}
