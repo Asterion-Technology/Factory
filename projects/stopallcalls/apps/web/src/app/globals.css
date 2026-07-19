@@ -315,3 +315,25 @@ legend {
 .agency-listed { font-size: 0.85rem; color: #4c5c46; margin: 0.25rem 0 0.75rem; }
 .agency-listed strong { color: #b4542e; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* RAD-15 staff navbar */
+.staff-nav { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; padding: 0.6rem 1rem; margin: 0 0 1.5rem; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(26, 34, 51, 0.06); }
+.staff-brand { white-space: nowrap; }
+.staff-nav-links { display: flex; gap: 0.25rem; }
+.staff-nav-link { padding: 0.35rem 0.85rem; border-radius: 999px; text-decoration: none; color: var(--ink-muted); font-size: 0.9rem; }
+.staff-nav-link:hover { background: #f1eee8; color: var(--ink); }
+.staff-nav-active { background: var(--ink); color: #fff; font-weight: 600; }
+.staff-nav-active:hover { background: var(--ink); color: #fff; }
+
+/* RAD-15 ops stat tiles */
+.stat-group-title { margin: 1.25rem 0 0.5rem; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+.stat-tile { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.9rem; }
+.stat-value { font-size: 1.7rem; font-weight: 700; line-height: 1.2; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat-value.stat-zero { color: #a8a294; font-weight: 500; }
+.stat-label { font-size: 0.78rem; color: var(--ink-muted); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem; }
+.stat-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.stat-dot-attention { background: #b4542e; }
+.stat-dot-alert { background: #8f1f1f; }
+.stat-attention { border-color: #d9a284; }
+.stat-alert { border-color: #c98484; }
