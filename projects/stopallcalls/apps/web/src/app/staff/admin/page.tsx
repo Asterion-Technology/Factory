@@ -76,9 +76,11 @@ export default function StaffAdminPage() {
 
       <h2>Retainer agreement</h2>
       <p className="staff-sub">
-        Upload and publish the immutable, hash-bound retainer versions consumers sign —{' '}
-        <Link className="link" href="/staff/admin/retainer">
-          manage retainer versions →
+        Upload and publish the immutable, hash-bound retainer versions consumers sign.
+      </p>
+      <p>
+        <Link className="cta secondary" href="/staff/admin/retainer">
+          Manage retainer versions
         </Link>
       </p>
 
