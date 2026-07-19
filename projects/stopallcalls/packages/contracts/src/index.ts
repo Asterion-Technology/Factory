@@ -4,3 +4,4 @@ export * from './intake';
 export * from './clio';
 export * from './payment';
 export * from './jobs';
+export * from './agencies';

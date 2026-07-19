@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AgencyEntry, ConsumerProfile } from '@stopallcalls/contracts';
+import type { AgencyEntry, AuthorizedAgencySummary, ConsumerProfile } from '@stopallcalls/contracts';
 
 interface StoredAgency {
   id: string;
@@ -17,6 +17,7 @@ interface ClientIntake {
 }
 
 import TurnstileWidget from './TurnstileWidget';
+import AgencyTypeahead from './AgencyTypeahead';
 
 type Step = 'verify' | 'profile' | 'agencies' | 'evidence' | 'review';
 
@@ -54,9 +55,14 @@ const EMPTY_PROFILE = {
 const EMPTY_AGENCY = {
   agencyName: '',
   agencyPhone: '',
+  agencyEmail: '',
+  agencyMailingAddress: '',
   originalCreditor: '',
   amountClaimed: '',
   contactChannels: [] as string[],
+  // RAD-19: set when the name came from the authorized-registry typeahead;
+  // cleared the moment the consumer edits the name manually.
+  authorizedAgencyId: '',
 };
 
 const CHANNELS = ['PHONE', 'TEXT', 'EMAIL', 'LETTER', 'VOICEMAIL', 'CREDIT_REPORT'] as const;
@@ -87,6 +93,9 @@ export default function IntakeWizard() {
   const [agencyForm, setAgencyForm] = useState(EMPTY_AGENCY);
   // INT-004 edit: id of the agency loaded into the form, null = adding.
   const [editingAgencyId, setEditingAgencyId] = useState<string | null>(null);
+  // RAD-19: the registry row behind the current form's name, for the
+  // "Listed:" confirmation line. Session-local display state only.
+  const [selectedAgency, setSelectedAgency] = useState<AuthorizedAgencySummary | null>(null);
   const [evidenceList, setEvidenceList] = useState<ClientEvidence[]>([]);
   const [evidenceCategory, setEvidenceCategory] = useState<string>('COLLECTION_LETTER');
   const [attest, setAttest] = useState({
@@ -216,11 +225,14 @@ export default function IntakeWizard() {
       const agency = {
         agencyName: agencyForm.agencyName,
         agencyPhone: agencyForm.agencyPhone || null,
+        agencyEmail: agencyForm.agencyEmail || null,
+        agencyMailingAddress: agencyForm.agencyMailingAddress || null,
         originalCreditor: agencyForm.originalCreditor || null,
         amountClaimedCents: Number.isFinite(cents) ? cents : null,
         currency: 'CAD',
         contactChannels: agencyForm.contactChannels,
         allegations: [],
+        authorizedAgencyId: agencyForm.authorizedAgencyId || null,
       };
       const path = editingAgencyId
         ? `/api/intakes/${intake.id}/agencies/${editingAgencyId}`
@@ -232,7 +244,22 @@ export default function IntakeWizard() {
       setIntake(updated);
       setAgencyForm(EMPTY_AGENCY);
       setEditingAgencyId(null);
+      setSelectedAgency(null);
     });
+  };
+
+  // RAD-19: registry pick — prefill only fields the consumer hasn't already
+  // typed (never clobber), and remember the pick for the confirmation line.
+  const applyAgencySelection = (a: AuthorizedAgencySummary) => {
+    setSelectedAgency(a);
+    setAgencyForm((f) => ({
+      ...f,
+      agencyName: a.name,
+      agencyPhone: f.agencyPhone || (a.phone ?? ''),
+      agencyEmail: f.agencyEmail || (a.email ?? ''),
+      agencyMailingAddress: f.agencyMailingAddress || (a.mailingAddress ?? ''),
+      authorizedAgencyId: a.id,
+    }));
   };
 
   const startEditAgency = (agency: StoredAgency) => {
@@ -240,11 +267,15 @@ export default function IntakeWizard() {
     setAgencyForm({
       agencyName: agency.entry.agencyName,
       agencyPhone: agency.entry.agencyPhone ?? '',
+      agencyEmail: agency.entry.agencyEmail ?? '',
+      agencyMailingAddress: agency.entry.agencyMailingAddress ?? '',
       originalCreditor: agency.entry.originalCreditor ?? '',
       amountClaimed:
         agency.entry.amountClaimedCents != null ? String(agency.entry.amountClaimedCents / 100) : '',
       contactChannels: [...agency.entry.contactChannels],
+      authorizedAgencyId: agency.entry.authorizedAgencyId ?? '',
     });
+    setSelectedAgency(null);
   };
 
   const duplicateAgencyItem = (agencyId: string) => {
@@ -519,11 +550,32 @@ export default function IntakeWizard() {
             <div className="grid">
               <label>
                 Collection agency name
-                <input required value={agencyForm.agencyName} onChange={(e) => setAgencyForm({ ...agencyForm, agencyName: e.target.value })} />
+                <AgencyTypeahead
+                  required
+                  value={agencyForm.agencyName}
+                  region={profileForm.region}
+                  country={profileForm.country}
+                  disabled={busy}
+                  onChange={(name) => {
+                    // Manual edits break the registry link — the ref must
+                    // always mean "the consumer picked this exact record".
+                    setAgencyForm({ ...agencyForm, agencyName: name, authorizedAgencyId: '' });
+                    setSelectedAgency(null);
+                  }}
+                  onSelect={applyAgencySelection}
+                />
               </label>
               <label>
                 Agency phone (if known)
                 <input type="tel" value={agencyForm.agencyPhone} onChange={(e) => setAgencyForm({ ...agencyForm, agencyPhone: e.target.value })} />
+              </label>
+              <label>
+                Agency email (if known)
+                <input type="email" value={agencyForm.agencyEmail} onChange={(e) => setAgencyForm({ ...agencyForm, agencyEmail: e.target.value })} />
+              </label>
+              <label>
+                Agency mailing address (if known)
+                <input value={agencyForm.agencyMailingAddress} onChange={(e) => setAgencyForm({ ...agencyForm, agencyMailingAddress: e.target.value })} />
               </label>
               <label>
                 Original creditor (if known)
@@ -534,6 +586,16 @@ export default function IntakeWizard() {
                 <input type="number" min="0" step="0.01" value={agencyForm.amountClaimed} onChange={(e) => setAgencyForm({ ...agencyForm, amountClaimed: e.target.value })} />
               </label>
             </div>
+            {selectedAgency && agencyForm.authorizedAgencyId === selectedAgency.id && (
+              <p className="agency-listed" role="status">
+                Listed: {selectedAgency.sourceRegistry}
+                {selectedAgency.licenceNumber ? `, licence ${selectedAgency.licenceNumber}` : ''} (
+                {selectedAgency.licenceStatus})
+                {selectedAgency.licenceStatus === 'revoked' || selectedAgency.licenceStatus === 'suspended' ? (
+                  <strong> — this licence is {selectedAgency.licenceStatus}. You can still report them.</strong>
+                ) : null}
+              </p>
+            )}
             <fieldset>
               <legend>How did they contact you? (select all that apply)</legend>
               {CHANNELS.map((c) => (
@@ -565,6 +627,7 @@ export default function IntakeWizard() {
                 onClick={() => {
                   setEditingAgencyId(null);
                   setAgencyForm(EMPTY_AGENCY);
+                  setSelectedAgency(null);
                 }}
               >
                 Cancel edit

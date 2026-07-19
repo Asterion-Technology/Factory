@@ -180,3 +180,4 @@ export {
   verifyEmailCode,
 } from './auth';
 export * from './markets';
+export * from './authorized-agencies';

@@ -63,6 +63,10 @@ export const agencyEntrySchema = z.object({
   stillContacting: unknownable(z.boolean()),
   contactFrequency: unknownable(z.string().trim().max(200)),
   allegations: z.array(allegationSchema).default([]),
+  // RAD-19: set when the consumer picked the agency from the authorized
+  // registry (id from authorized_agencies); cleared if they edit the name.
+  // Free-text entry stays fully valid — never require a registry match.
+  authorizedAgencyId: unknownable(z.string().trim().max(100)),
 });
 
 export const intakeCreateSchema = z.object({

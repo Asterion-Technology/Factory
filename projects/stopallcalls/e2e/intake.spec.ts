@@ -114,6 +114,34 @@ test('full intake: verify, profile, multiple agencies, submit (INT-002..008)', a
   await expect(page.getByRole('heading', { name: 'Intake received' })).toBeVisible();
 });
 
+test('agency registry typeahead: pick prefills contact fields; free text still works (RAD-19)', async ({ page }, testInfo) => {
+  await page.goto('/intake');
+  await verifyEmail(page, uniqueEmail(testInfo));
+  await fillProfile(page); // region ON — the seed's Ontario row should win dedupe
+
+  // Typing a prefix of a seeded (fictitious) licensed agency opens suggestions.
+  const nameBox = page.getByLabel('Collection agency name');
+  await nameBox.pressSequentially('maple ri');
+  const option = page.getByRole('option', { name: /Maple Ridge Recovery Services Ltd\./ });
+  await expect(option).toBeVisible();
+  await option.click();
+
+  // Selection sets the name and prefills empty contact fields from the registry.
+  await expect(nameBox).toHaveValue('Maple Ridge Recovery Services Ltd.');
+  await expect(page.getByLabel('Agency phone (if known)')).toHaveValue('1-800-555-0101');
+  await expect(page.getByLabel('Agency email (if known)')).toHaveValue('contact@mapleridge.example.test');
+  await expect(page.locator('.agency-listed')).toContainText('Fictitious Test Registry');
+  await expect(page.locator('.agency-listed')).toContainText('ON-1000001');
+  await page.getByLabel('Phone', { exact: true }).check();
+  await page.getByRole('button', { name: '+ Add this agency' }).click();
+  await expect(page.locator('.agency-list')).toContainText('Maple Ridge Recovery Services Ltd.');
+
+  // Free-text fallback: an unlisted agency saves with no selection required —
+  // an unlicensed collector is precisely the case the funnel must accept.
+  await addAgency(page, 'Unlisted Shadow Collections (Fictitious)');
+  await expect(page.locator('.agency-list li')).toHaveCount(2);
+});
+
 test('save/resume: progress survives a reload (INT-002, INT-006)', async ({ page }, testInfo) => {
   const email = uniqueEmail(testInfo);
   await page.goto('/intake');

@@ -1,5 +1,8 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import {
+  D1AuthorizedAgencyStore,
+  InMemoryAuthorizedAgencyStore,
+  type AuthorizedAgencyStore,
   D1MarketStore,
   InMemoryMarketStore,
   type MarketStore,
@@ -315,7 +318,11 @@ const AUDIT_KEY = Symbol.for('stopallcalls.auditStore');
 const g6 = globalThis as { [AUDIT_KEY]?: AuditStore };
 
 const MARKET_KEY = Symbol.for('sac.store.markets');
-interface G7 { [MARKET_KEY]?: MarketStore }
+const AGENCY_REGISTRY_KEY = Symbol.for('sac.store.authorizedAgencies');
+interface G7 {
+  [MARKET_KEY]?: MarketStore;
+  [AGENCY_REGISTRY_KEY]?: AuthorizedAgencyStore;
+}
 const g7 = globalThis as unknown as G7;
 
 // RAD-17: market config — D1-backed deployed, seeded memory locally.
@@ -323,6 +330,13 @@ export function getMarketStore(): MarketStore {
   const cf = cloudflareEnv();
   g7[MARKET_KEY] ??= cf ? new D1MarketStore(cf.DB) : new InMemoryMarketStore();
   return g7[MARKET_KEY];
+}
+
+// RAD-19: authorized-agency registry — read-only reference data.
+export function getAuthorizedAgencyStore(): AuthorizedAgencyStore {
+  const cf = cloudflareEnv();
+  g7[AGENCY_REGISTRY_KEY] ??= cf ? new D1AuthorizedAgencyStore(cf.DB) : new InMemoryAuthorizedAgencyStore();
+  return g7[AGENCY_REGISTRY_KEY];
 }
 
 export function getAuditStore(): AuditStore {
