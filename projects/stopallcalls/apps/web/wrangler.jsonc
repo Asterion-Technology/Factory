@@ -1,8 +1,10 @@
 // Live dev-environment config for apps/web on Workers via OpenNext.
 // infra/wrangler.web.jsonc remains the multi-env template; this file is what
 // `opennextjs-cloudflare build/preview` and (gated) deploys actually use.
-// Secrets (TURNSTILE_SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are
-// Wrangler secrets — never listed here.
+// Secrets (TURNSTILE_SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+// DIDIT_API_KEY, DIDIT_WEBHOOK_SECRET) are Wrangler secrets — never listed
+// here. RAD-26: didit IDV activates only when both secrets AND the
+// DIDIT_WORKFLOW_ID var are set; otherwise the fake adapter runs.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stopallcalls-web-dev",

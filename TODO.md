@@ -120,6 +120,12 @@
 - [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
 - [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
 
+#### RAD-26 didit.me IDV — follow-ups (2026-07-19)
+- [ ] Redacted per-check extraction from didit's `decision` object (id_verifications/liveness/face match → MATCH/MISMATCH/UNAVAILABLE) — checks stay null for now, gate runs on status alone
+- [ ] Re-verification after a terminal state: didit never reuses terminal sessions (new session_id), but `IdentityRecord` pins one providerRef per intake — a restarted verification's webhooks would 404. Needs providerRef update-on-restart or multi-attempt records when a re-verify flow is built
+- [ ] Local dev against real didit needs a public webhook URL (tunnel) — dev/E2E stay on the fake adapter; live webhook verification happens on staging
+- [ ] Didit sandbox scenarios (`sandbox_scenario` at session create, sandbox apps only) — useful for staging UAT of Declined/In Review paths without real documents
+
 #### Linear workspace migration
 - [x] StopAllCalls issues recreated in the radical-disruption workspace's **Cease** project as RAD-8..RAD-16 (2026-07-16; key stored as `RADICAL_LINEAR_API_KEY` in `.devcontainer/.env`); BUILD_PLAN links and `config/repos.yaml` updated
 - [ ] Archive or delete the interim `radical-disruption` team (RAD-1..9) inside asterion1971 — duplicates of the new-workspace issues; deleting a team archives its issues, so needs a human call

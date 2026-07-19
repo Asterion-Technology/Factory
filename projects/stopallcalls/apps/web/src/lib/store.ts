@@ -68,10 +68,12 @@ import {
   InMemoryTaskStore,
 } from '@stopallcalls/db';
 import {
+  DiditIdentityAdapter,
   FakeIdentityAdapter,
   FakePaymentAdapter,
   FakePdfAdapter,
   FakeSignatureAdapter,
+  type IdentityAdapter,
 } from '@stopallcalls/integrations';
 import {
   CloudflareTurnstileAdapter,
@@ -148,7 +150,7 @@ type Singletons = {
   [RETAINER_VERSION_KEY]?: RetainerVersionStore;
   [RETAINER_SIGNATURE_KEY]?: RetainerSignatureStore;
   [PAYMENT_ADAPTER_KEY]?: FakePaymentAdapter;
-  [IDENTITY_ADAPTER_KEY]?: FakeIdentityAdapter;
+  [IDENTITY_ADAPTER_KEY]?: IdentityAdapter;
   [SIGNATURE_ADAPTER_KEY]?: FakeSignatureAdapter;
   [DEV_CODES_KEY]?: Map<string, string>;
 };
@@ -353,8 +355,18 @@ export function getPaymentAdapter(): FakePaymentAdapter {
   return g[PAYMENT_ADAPTER_KEY];
 }
 
-export function getIdentityAdapter(): FakeIdentityAdapter {
-  g[IDENTITY_ADAPTER_KEY] ??= new FakeIdentityAdapter();
+// RAD-26: real didit.me IDV when fully configured (all three values); fake
+// otherwise (DEV-003 default, and what E2E runs against). Mirrors the
+// Turnstile/Resend rule. DIDIT_API_KEY + DIDIT_WEBHOOK_SECRET are wrangler
+// secrets; DIDIT_WORKFLOW_ID is a var.
+export function getIdentityAdapter(): IdentityAdapter {
+  const apiKey = process.env.DIDIT_API_KEY;
+  const webhookSecret = process.env.DIDIT_WEBHOOK_SECRET;
+  const workflowId = process.env.DIDIT_WORKFLOW_ID;
+  g[IDENTITY_ADAPTER_KEY] ??=
+    apiKey && webhookSecret && workflowId
+      ? new DiditIdentityAdapter({ apiKey, workflowId, webhookSecret })
+      : new FakeIdentityAdapter();
   return g[IDENTITY_ADAPTER_KEY];
 }
 
