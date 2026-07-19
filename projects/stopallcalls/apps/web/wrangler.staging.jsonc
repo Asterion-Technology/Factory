@@ -20,7 +20,10 @@
     "SAC_ACCOUNT_ID": "0440a74c4fc231f28b6bb856ebe9396a",
     "SAC_EVIDENCE_BUCKET_NAME": "stopallcalls-evidence-staging",
     "SAC_MAIL_FROM": "Stops All Calls <no-reply@stopsallcalls.com>",
-    "ALLOW_CLIO_CONNECT": "1"
+    "ALLOW_CLIO_CONNECT": "1",
+    // RAD-26: selects the didit Free KYC workflow; IDV stays on the fake
+    // adapter until DIDIT_API_KEY + DIDIT_WEBHOOK_SECRET secrets are also set.
+    "DIDIT_WORKFLOW_ID": "79c4af13-1bb3-44b0-b917-b21c89aed7c0"
   },
   "d1_databases": [
     {
