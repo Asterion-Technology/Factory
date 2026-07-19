@@ -1,0 +1,15 @@
+{
+  "_note": "DRAFT French — UI strings drafted for review; every legal/disclaimer string requires lawyer-approved translation before production (RAD-17: FR legal text is approved content, not machine translation).",
+  "landing": {
+    "title": "Faites cesser les appels de recouvrement",
+    "lead": "Des agents de recouvrement vous appellent, vous textent, vous écrivent ? Nous préparons et envoyons à l'agence de recouvrement une lettre de mise en demeure émise par un avocat.",
+    "startIntake": "Commencer la demande",
+    "disclaimerScope": "[À TRADUIRE ET APPROUVER PAR UN AVOCAT — avis juridique propre à la juridiction.] Il s'agit d'un service juridique à portée limitée. Il n'inclut pas de litige, de procédure judiciaire, de redressement de crédit, de règlement de dettes ni de défense contre une poursuite, sauf mandat distinct.",
+    "disclaimerLinks": "[À TRADUIRE — avis de confidentialité · déclaration d'accessibilité · informations sur le permis d'exercice]"
+  },
+  "common": {
+    "language": "Langue",
+    "english": "English",
+    "french": "Français"
+  }
+}
