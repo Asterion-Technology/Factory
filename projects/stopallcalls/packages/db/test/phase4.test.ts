@@ -191,6 +191,29 @@ describe('identity verification (IDV-001..005)', () => {
     expect(again.sessionUrl).toBe(started.sessionUrl);
   });
 
+  it('re-points the record when the provider issues a different session (RAD-26 UAT)', async () => {
+    const { store, intake, started } = await session();
+    // A different adapter issuing a fresh providerRef for the same intake —
+    // the record must follow it or its webhooks can never match. (Warm-up
+    // call advances the fake's counter so its ref differs from the first.)
+    const provider2 = new FakeIdentityAdapter();
+    await provider2.createSession({ idempotencyKey: 'warmup', clientRef: 'warmup' });
+    const reissued = await startIdentityVerification(store, provider2, intake);
+    expect(reissued.record.id).toBe(started.record.id);
+    expect(reissued.record.providerRef).not.toBe(started.record.providerRef);
+    expect(reissued.record.status).toBe('PENDING');
+    expect(await store.getByProviderRef(reissued.record.providerRef)).not.toBeNull();
+  });
+
+  it('never re-points a settled (VERIFIED/OVERRIDDEN) record', async () => {
+    const { store, adapter, intake, started } = await session();
+    const evt = { eventId: 'idv-evt-settle', providerRef: started.record.providerRef, status: 'VERIFIED' as const };
+    await applyIdentityWebhook(store, adapter, JSON.stringify(evt), SIG, evt);
+    const after = await startIdentityVerification(store, new FakeIdentityAdapter(), intake);
+    expect(after.record.status).toBe('VERIFIED');
+    expect(after.record.providerRef).toBe(started.record.providerRef);
+  });
+
   it('replay-protects webhooks and routes MISMATCH to human review, override audited', async () => {
     const { store, adapter, started } = await session();
     const evt = {

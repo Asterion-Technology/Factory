@@ -247,10 +247,11 @@ export class D1IdentityStore implements IdentityStore {
   async update(record: IdentityRecord): Promise<void> {
     await this.db
       .prepare(
-        `UPDATE identity_verifications SET status = ?, checks_json = ?, webhook_event_ids_json = ?,
+        `UPDATE identity_verifications SET provider_ref = ?, status = ?, checks_json = ?, webhook_event_ids_json = ?,
            override_by = ?, override_reason = ?, updated_at = ? WHERE id = ?`,
       )
       .bind(
+        record.providerRef,
         record.status,
         record.checks ? JSON.stringify(record.checks) : null,
         JSON.stringify(record.processedEventIds),
