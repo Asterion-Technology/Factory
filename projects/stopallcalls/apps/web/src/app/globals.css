@@ -299,3 +299,4 @@ legend {
 .staff-metric { display: inline-block; margin: 0 1.5rem 0.75rem 0; }
 .staff-letter { white-space: pre-wrap; background: #faf8f4; border: 1px solid #d8d4cc; border-radius: 8px; padding: 1rem; font-size: 0.85rem; max-height: 28rem; overflow-y: auto; }
 .staff-prior { opacity: 0.65; }
+.staff-confirm { border: 2px solid #b4542e; border-radius: 8px; padding: 1rem; margin-top: 1rem; background: #fdf6f2; }

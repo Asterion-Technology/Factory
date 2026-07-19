@@ -28,3 +28,19 @@ describe('market gating (RAD-17)', () => {
     expect(isMarketCode('EU')).toBe(false);
   });
 });
+
+import { normalizeCanadianRegion } from '../src/market';
+
+describe('normalizeCanadianRegion', () => {
+  it('accepts codes and names, accent- and case-insensitive', () => {
+    expect(normalizeCanadianRegion('on')).toBe('ON');
+    expect(normalizeCanadianRegion('Ontario')).toBe('ON');
+    expect(normalizeCanadianRegion('Québec')).toBe('QC');
+    expect(normalizeCanadianRegion('quebec')).toBe('QC');
+    expect(normalizeCanadianRegion(' british  columbia ')).toBe('BC');
+  });
+  it('returns null for unrecognized input (caller fails closed)', () => {
+    expect(normalizeCanadianRegion('Ontari0')).toBeNull();
+    expect(normalizeCanadianRegion('New York')).toBeNull();
+  });
+});
