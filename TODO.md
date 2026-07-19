@@ -99,6 +99,16 @@
 - [ ] Linear hygiene: rename/archive the stale interim team 'radical-disruption' (RAD-1..9, project 'Cease and Dissist') in the asterion1971 workspace — owner approval before archiving
 - [ ] AST-215: Factory main CI npm-ci workspace-glob failure — still red on one workflow per merge
 
+#### RAD-19 agency registry — follow-ups (2026-07-19)
+- [ ] Prune/delist handling: seed upserts never delete — an agency removed from a registry lingers until a `--prune` mode (compare ids per source_registry) exists (`packages/db/scripts/agency-seed-lib.ts`)
+- [ ] Re-verification cadence: recommend quarterly re-mine → rebuild seed → re-apply; `verified_at`/`expires_at` are stored but nothing surfaces staleness yet
+- [ ] Staff portal: surface the licensure link on intake review — `authorizedAgencyId` + licence status/`verified_at` ("verified as of") so staff can spot unlicensed/revoked collectors at a glance
+- [ ] Outreach-campaign columns from the owner's Ontario workbook (escalation contacts, C&D-sent tracking) deliberately excluded from `authorized_agencies` — future staff-portal outreach feature if wanted
+- [ ] Ontario data provenance: source is collectionagencies.ca (third-party aggregator) — spot-check against the official Ontario registry and confirm redistribution posture before the cease repo goes public; remaining provinces should prefer official registries
+- [ ] Typeahead strings are hardcoded EN like the rest of the wizard — add EN/FR keys when the wizard migrates to next-intl (RAD-17 i18n)
+- [ ] `agencies` table in the 0001 baseline is legacy/unused (agencies live in intake snapshots) — consider dropping in a future migration to avoid confusion with `authorized_agencies`
+- [ ] US phase (RAD-25): needs a `normalizeUSRegion` state normalizer + per-state official sources; NMLS bulk scraping is prohibited by ToS
+
 #### Phase 1 remaining (RAD-3, formerly AST-169)
 - [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
 - [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
