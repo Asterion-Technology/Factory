@@ -39,11 +39,16 @@ interface IntakeDetail {
   updatedAt: string;
 }
 
+// Mirrors ConflictCheckRecord (packages/db/src/clio.ts) — the API returns the
+// record as-is: hits per search term, disposition fields flat and null until
+// an authorized human decides (CLIO-003).
 interface ConflictCheck {
   id: string;
-  status: string;
-  disposition?: { disposition: string; reviewedBy: string; rationale: string } | null;
-  results?: unknown[];
+  terms: unknown[];
+  hits: { contacts: unknown[] }[];
+  disposition: string | null;
+  reviewedBy: string | null;
+  rationale: string | null;
 }
 
 interface MatterSummary {
@@ -206,13 +211,15 @@ export default function StaffIntakeDetailPage() {
       {conflict && (
         <>
           <p>
-            <span className="staff-tag">{conflict.status.replaceAll('_', ' ').toLowerCase()}</span>{' '}
-            <span className="staff-sub">{(conflict.results ?? []).length} Clio result(s)</span>
+            <span className="staff-tag">{(conflict.disposition ?? 'UNDECIDED').replaceAll('_', ' ').toLowerCase()}</span>{' '}
+            <span className="staff-sub">
+              {conflict.hits.reduce((n, h) => n + h.contacts.length, 0)} Clio result(s) across {conflict.terms.length}{' '}
+              search term(s)
+            </span>
           </p>
           {conflict.disposition ? (
             <p className="staff-sub">
-              Disposition: <strong>{conflict.disposition.disposition}</strong> by {conflict.disposition.reviewedBy} —{' '}
-              {conflict.disposition.rationale}
+              Disposition: <strong>{conflict.disposition}</strong> by {conflict.reviewedBy} — {conflict.rationale}
             </p>
           ) : (
             <>
