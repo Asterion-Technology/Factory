@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] — 2026-07-19
+
+### Changed
+- Merge pull request #21 from Asterion-Technology/feature/RAD-17-market-framework
+
+
 ## [Unreleased] — 2026-07-18
 
 ### Changed
