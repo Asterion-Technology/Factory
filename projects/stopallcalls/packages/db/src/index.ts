@@ -179,3 +179,4 @@ export {
   startEmailVerification,
   verifyEmailCode,
 } from './auth';
+export * from './markets';
