@@ -327,6 +327,13 @@ export class D1RetainerVersionStore implements RetainerVersionStore {
       .first<RetainerVersionRow>();
     return row ? toRetainerVersion(row) : null;
   }
+
+  async list(): Promise<RetainerVersionRecord[]> {
+    const { results } = await this.db
+      .prepare('SELECT * FROM retainer_versions ORDER BY published_at DESC')
+      .all<RetainerVersionRow>();
+    return (results ?? []).map(toRetainerVersion);
+  }
 }
 
 interface RetainerSignatureRow {
