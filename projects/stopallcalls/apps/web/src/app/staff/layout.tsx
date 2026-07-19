@@ -48,6 +48,9 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
           <Link className="link" href="/staff/ops">
             Operations
           </Link>
+          <Link className="link" href="/staff/admin">
+            Admin
+          </Link>
         </nav>
         <div className="staff-identity">
           {staff ? (
