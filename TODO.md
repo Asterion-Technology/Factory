@@ -68,11 +68,14 @@
 
 ### StopAllCalls (projects/stopallcalls — AST-167 / AST-168)
 
+> **Roadmap moved to Linear (2026-07-19): Cease project, Alpha/Beta/MVP milestones — Alpha ACHIEVED; Beta = RAD-28..53; MVP = RAD-54..62 (+RAD-17, RAD-24).** Open boxes below are historical context; new work lands as Linear tickets, not here.
+
+
 #### Deferred from Phase 0 scaffold PR
 - [x] Cloudflare dev provisioning (2026-07-16, account `0440a74c…` radical-disruptive): D1 `stopallcalls-dev` created + schema applied (29 tables), queues `stopallcalls-jobs-dev`/`-dlq-dev` created, Turnstile widget `stopallcalls-dev` created (sitekey/secret in `.devcontainer/.env`), real D1 id in `infra/wrangler.*.jsonc`, `wrangler` devDependency added
 - [x] R2 enabled + private buckets `stopallcalls-evidence-dev` / `stopallcalls-documents-dev` created (location hint enam, 2026-07-16) — matches `infra/wrangler.*.jsonc` bindings
 - [x] Real Turnstile wired (2026-07-16): `CloudflareTurnstileAdapter` + client widget, env-switched (`apps/web/.env.local` locally; E2E pins the fake); `wrangler secret put TURNSTILE_SECRET_KEY` at deploy remains human-gated
-- [ ] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated)
+- [x] Provision preview/staging/prod environments (OPS-001) — only dev exists; `@opennextjs/cloudflare` devDependency + first deploy still pending (deploy is human-gated) — staging LIVE 2026-07-18 (wrangler.staging.jsonc); prod = RAD-58
 - [ ] Cloudflare Access (staff SSO/MFA) not yet configured — needed by Phase 2 evidence review; token lacks the Access scope (add when needed)
 - [ ] Factory CI does not run StopAllCalls checks (pnpm typecheck/lint/test) — `.github/workflows/` changes are human-gated
   - Location: `.github/workflows/ci.yml`
@@ -91,10 +94,10 @@
 - [x] RAD-18 domain + account: dedicated Resend account for stopsallcalls, `stopsallcalls.com` VERIFIED (us-east-1, DNS already in place), live send confirmed 2026-07-18 — `SAC_RESEND_API_KEY` (full-access) staged in `.devcontainer/.env`, Haven's `RESEND_API_KEY` untouched
 - [ ] RAD-18 remaining: mint a SEND-ONLY key from the dedicated account for the worker runtime (never ship the full-access key), `wrangler secret put RESEND_API_KEY` + `SAC_MAIL_FROM` var when staging/prod envs exist (human-gated; dev stays on the fake adapter), then retire `SAC_E2E_EXPOSE_CODES` from deployed config
 - [ ] Merge Factory PR #14 ("Stops All Calls" branding docs) and PR #15 (Resend email adapter) — human approval gate
-- [ ] Resume RAD-15 staff portal (UI-002..006) on `feature/RAD-15-staff-portal` — include the RAD-17 market-switch admin screen (markets enable/disable, audited)
+- [x] Resume RAD-15 staff portal (UI-002..006) on `feature/RAD-15-staff-portal` — include the RAD-17 market-switch admin screen (markets enable/disable, audited) — done — staff portal live on staging incl. market admin
 - [ ] Worker custom domains on stopsallcalls.com (needs zone token): app/staging hostnames → workers, then update Turnstile widget domains, Cloudflare Access apps, R2 CORS origins, Clio OAuth redirect URIs
 - [x] Zone-scoped Cloudflare token verified 2026-07-18 (`CLOUDFLARE_ZONE_API_TOKEN` in `.devcontainer/.env`): status active, sees only stopsallcalls.com (zone id fc7adbf1…) — unblocks worker custom domains / DNS / SSL work
-- [ ] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk)
+- [x] Push local-only branch feature/RAD-15-staff-portal to origin (single-disk risk) — merged; branch obsolete
 - [ ] Sync radical-disruptive/cease (8+ commits behind) via cease-subtree-sync after open PRs merge
 - [ ] Linear hygiene: rename/archive the stale interim team 'radical-disruption' (RAD-1..9, project 'Cease and Dissist') in the asterion1971 workspace — owner approval before archiving
 - [ ] AST-215: Factory main CI npm-ci workspace-glob failure — still red on one workflow per merge
@@ -113,11 +116,11 @@
 - [x] Consumer email one-time-code verification + resumable session (INT-002) — done 2026-07-16 (`packages/db/src/auth.ts`, `/api/auth/*` routes); phone-number verification variant not built (email only)
 - [x] Server-side abuse controls: Turnstile adapter + rate limiting + duplicate-submission prevention (INT-008) — done 2026-07-16 with `FakeTurnstileAdapter`
 - [x] Playwright E2E intake tests, mobile + desktop viewports (Phase 1 exit criterion) — 10 passing (`e2e/intake.spec.ts`)
-- [ ] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx`
+- [x] Real Turnstile: render the client widget (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`) and add the siteverify adapter (`TURNSTILE_SECRET_KEY` wrangler secret) — blocked on Cloudflare provisioning; placeholder token marked in `apps/web/src/app/intake/IntakeWizard.tsx` — done — live on dev+staging
 - [x] Real email provider adapter for verification codes — ResendEmailAdapter landed (RAD-18, 2026-07-18), env-switched on `RESEND_API_KEY`; sending-domain DNS + secret put remain human-gated (see RAD-18 section below)
 - [ ] Durable rate limiting — `SlidingWindowRateLimiter` is per-instance in-memory; move to Durable Object or D1 counters at provisioning
-- [ ] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned
-- [ ] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet
+- [x] D1-backed IntakeStore + AuthStore — in-memory stores (`packages/db/src/memory.ts`, `src/auth.ts`) are dev-only and lose state on restart; swap behind the interfaces once D1 is provisioned — done 2026-07-16 (D1 stores live)
+- [x] Agency entry edit/duplicate actions (INT-004) — add/remove implemented; edit and duplicate not yet — done — live incl. E2E
 - [ ] Versioned amendments after submission (INT-007) — snapshot immutability enforced; amendment flow not yet built
 
 #### RAD-26 didit.me IDV — follow-ups (2026-07-19)
@@ -153,7 +156,7 @@
 - [x] Phase 3 core: conflict-search package → human-only disposition → gate-checked idempotent provisioning, with in-memory retry tests proving no duplicate contacts/matters (2026-07-17)
 - [x] D1 persistence (2026-07-18): `D1ConflictCheckStore`/`D1MatterStore`/`D1ClioMappingStore` + `migrations/0002_clio_persistence.sql` (adds display_number columns; drops matters→agencies FK since agencies live in the snapshot JSON; conflict reviewed_by is TEXT until staff SSO); exit-criterion retry tests re-proven against real D1 (`test-workers/d1-stores.test.ts`)
 - [x] Submit-flow wiring (2026-07-18): conflict check auto-runs on intake submission (best-effort, idempotent, consumer never sees it — WF-006); staff API `GET/POST /api/staff/intakes/:id/conflict`, `POST …/conflict/disposition`, `POST …/provision` (provision evaluates the REAL gate snapshot, so it stays blocked until Phase 4 gates exist)
-- [ ] HUMAN-GATED: apply `0002_clio_persistence.sql` to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy
+- [x] HUMAN-GATED: apply `0002_clio_persistence.sql` to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy — staging D1 runs full schema 0001-0006
 - [ ] Config-driven Clio custom-field mappings validated at startup (CLIO-007)
 - [ ] Retry queue + staff resolution for permanent Clio failures (CLIO-008/CLIO-009) — needs the `stopallcalls-jobs-dev` consumer (still a Phase 0 stub); move the post-submit conflict check there too
 - [ ] Staff conflict routes use the interim `ALLOW_CLIO_CONNECT` admin gate — replace with Cloudflare Access staff identity, and restore the `conflict_checks.reviewed_by` → `users(id)` FK once real staff identities exist
@@ -163,11 +166,11 @@
 - [x] Services: idempotent orders from frozen snapshots; hosted-checkout payments with signature-verified replay-protected webhooks (PAY-003/004); billing-staff-only EMT confirmation (PAY-005); provider-hosted IDV with mismatch→manual-review + audited overrides (IDV-001..005); immutable retainer versions with hash-bound e-signature evidence (RET-001..005)
 - [x] Routes: consumer checkout/identity/retainer, webhook endpoints (payment + identity), staff EMT-confirm / identity-override / retainer-publish; provisioning now evaluates the full real gate snapshot (lib/gates.ts)
 - [x] D1 stores + migration 0003 (2026-07-18, commit 1cc4294): orders/payments/identity_verifications/retainer_* persisted, FKs relaxed like 0002, UNIQUE orders(intake_id), provider-ref unique indexes; 5 real-D1 contract tests
-- [ ] HUMAN-GATED: apply migrations 0002 + 0003 to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy
+- [x] HUMAN-GATED: apply migrations 0002 + 0003 to remote dev D1 (`wrangler d1 migrations apply stopallcalls-dev --remote` from `apps/web/`) before the next deploy — staging D1 runs full schema 0001-0006
 - [ ] Real provider selection (payments, IDV, e-signature) — SRS §16 human decision; fakes only today (DEV-003). New provider = sandbox adapter in packages/integrations behind env switch + Snyk scan
 - [ ] Pricing amounts + EMT instructions text are PLACEHOLDERS (SAC_PRICING / SAC_EMT_INSTRUCTIONS env) — product owner/counsel must set real values before production
-- [ ] Consumer post-submit UI (identity/retainer/payment steps + status) — wizard currently ends at submission; API flows exist but have no screens (full portals are Phase 6 UI-001..006)
-- [ ] Audit-events table exists but no audit store yet — EMT confirmations and identity overrides record actor on the row; wire append-only audit_events in Phase 6 (DATA-004)
+- [x] Consumer post-submit UI (identity/retainer/payment steps + status) — done: /status dashboard live — wizard currently ends at submission; API flows exist but have no screens (full portals are Phase 6 UI-001..006)
+- [x] Audit-events table exists but no audit store yet — EMT confirmations and identity overrides record actor on the row; wire append-only audit_events in Phase 6 (DATA-004) — done — D1AuditStore + chain verify live
 
 #### Phase 5 — Letters (RAD-14, started 2026-07-18)
 - [x] Deterministic letter engine (domain): strict placeholder templates from verified structured fields only, versioned generator (LTR-001/002); letter versions record template version, input snapshot, generator version, PDF hash (LTR-005)
@@ -183,7 +186,7 @@
 #### Phase 6 — Operations (RAD-15, started 2026-07-18)
 - [x] Append-only tamper-evident audit trail (DATA-004): hash-chained events (each hash covers content + previous hash), no update/delete path by construction, chain verification detecting edit/deletion/reordering/forgery; D1AuditStore on the baseline audit_events table (no migration needed); wired into conflict disposition, EMT confirm, identity override, letter decision, letter send; staff GET /api/staff/audit with live chain verdict
 - [x] Consumer case-status dashboard (UI-001): /status tracker — 7 steps with complete/active/pending/attention states, live actions (identity session, retainer sign + confirm, card checkout, e-Transfer instructions), consumer-safe aggregate endpoint (conflict data never exposed, WF-006); E2E-covered mobile+desktop
-- [ ] Staff portal screens (UI-002..006, master client view) — staff APIs exist; screens unbuilt (need Cloudflare Access first for real auth)
+- [x] Staff portal screens (UI-002..006, master client view) — staff APIs exist; screens unbuilt (need Cloudflare Access first for real auth) — done — queue/ops/admin/intake/matter pages live
 - [ ] Magic (21st.dev) MCP returns malformed payloads on both builder and inspiration tools ([object Object] / invalid MCP content) — upstream wrapper bug; component was hand-built this time. Re-test after their next release
 - [x] DB-backed ops summary (2026-07-18): GET /api/staff/ops — intake/evidence/identity/payment/delivery/task/letter counts from D1, counts only never PII (OPS-004/005); follow-up reconciliation cron already running (OPS-007)
 - [ ] Remaining ops signals need Cloudflare surfaces: queue depth + dead letters (Queues API), request errors/provider latency (Workers observability), push alerts + runbooks (OPS-005/006)
