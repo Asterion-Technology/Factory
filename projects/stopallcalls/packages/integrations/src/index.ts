@@ -5,6 +5,7 @@ export type {
   EmailAdapter,
   IdentityAdapter,
   IdentityStatus,
+  IdentityWebhookParseResult,
   MalwareScanner,
   PaymentAdapter,
   PaymentStatus,
@@ -22,6 +23,8 @@ export type { R2BucketLike, R2StorageConfig } from './r2';
 export { R2StorageAdapter } from './r2';
 export type { ResendEmailConfig } from './resend-email';
 export { ResendEmailAdapter } from './resend-email';
+export type { DiditConfig } from './didit';
+export { DiditIdentityAdapter } from './didit';
 export {
   FAKE_MALWARE_MARKER,
   FakeClioAdapter,

@@ -55,6 +55,23 @@ export interface PaymentAdapter {
 
 export type IdentityStatus = 'PENDING' | 'VERIFIED' | 'MISMATCH' | 'FAILED';
 
+/** Provider-native webhook body mapped to the app's event shape (RAD-26). */
+export type IdentityWebhookParseResult =
+  | {
+      kind: 'event';
+      event: {
+        eventId: string;
+        providerRef: string;
+        status: IdentityStatus;
+        checks?: Record<string, 'MATCH' | 'MISMATCH' | 'UNAVAILABLE'>;
+      };
+    }
+  // ignored: authentic but not a status event — ack without state change.
+  // stale: replayed/old timestamp. invalid: unparseable or unknown shape.
+  | { kind: 'ignored' }
+  | { kind: 'stale' }
+  | { kind: 'invalid' };
+
 export interface IdentityAdapter {
   createSession(input: {
     idempotencyKey: string;
@@ -66,6 +83,13 @@ export interface IdentityAdapter {
     // IDV-002: redacted match results only — never raw documents/biometrics.
     checks: Record<string, 'MATCH' | 'MISMATCH' | 'UNAVAILABLE'>;
   }>;
+  /** Header carrying the provider's signature; default `x-webhook-signature`. */
+  webhookSignatureHeader?: string;
+  /**
+   * Maps a provider-native webhook body to the app event. Absent = the body
+   * already matches `identityWebhookEventSchema` (the fake's contract).
+   */
+  parseWebhookEvent?(raw: string): IdentityWebhookParseResult;
 }
 
 export interface SignatureAdapter {

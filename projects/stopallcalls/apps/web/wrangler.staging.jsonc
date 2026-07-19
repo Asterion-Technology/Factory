@@ -5,7 +5,9 @@
 // Cloudflare Access is configured (CF_ACCESS_AUD) — remove after UAT.
 // Secrets via wrangler secret put --config wrangler.staging.jsonc:
 //   TURNSTILE_SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
-//   RESEND_API_KEY (staging-scoped; rotate to a send-only key before prod).
+//   RESEND_API_KEY (staging-scoped; rotate to a send-only key before prod),
+//   DIDIT_API_KEY + DIDIT_WEBHOOK_SECRET (RAD-26; needs DIDIT_WORKFLOW_ID
+//   var too — didit IDV stays on the fake adapter until all three are set).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stopallcalls-web-staging",
