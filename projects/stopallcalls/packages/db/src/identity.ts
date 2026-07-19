@@ -98,6 +98,18 @@ export async function startIdentityVerification(
   });
   const existing = await store.getByIntake(intake.id);
   if (existing) {
+    // The provider may issue a DIFFERENT session than the one on record
+    // (prior session hit a terminal state, adapter/config changed). Keep the
+    // record pointed at the session the consumer will actually complete, or
+    // its webhooks can never match (found in RAD-26 UAT: a fake-era record
+    // swallowed a real didit approval). Settled outcomes are never reopened.
+    const settled = existing.status === 'VERIFIED' || existing.status === 'OVERRIDDEN';
+    if (!settled && existing.providerRef !== session.providerRef) {
+      existing.providerRef = session.providerRef;
+      existing.status = 'PENDING';
+      existing.updatedAt = now();
+      await store.update(existing);
+    }
     return { record: existing, sessionUrl: session.sessionUrl };
   }
   const record: IdentityRecord = {

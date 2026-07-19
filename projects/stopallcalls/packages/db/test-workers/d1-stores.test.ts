@@ -346,6 +346,27 @@ describe('D1 Phase 4 stores (RAD-13)', () => {
     expect(reloaded?.processedEventIds).toEqual(['d1-idv-1']);
   });
 
+  it('identity: re-issued session re-points provider_ref in D1 (RAD-26 UAT)', async () => {
+    const store = new D1IdentityStore(env.DB);
+    const intake = await submittedD1Intake(['B (Fictitious)']);
+    const { record } = await startIdentityVerification(store, new FakeIdentityAdapter(), intake);
+    // A second adapter issues a different providerRef — the D1 row must
+    // follow (update() previously skipped the provider_ref column). Warm-up
+    // advances the fake's counter past the first adapter's ref.
+    const provider2 = new FakeIdentityAdapter();
+    await provider2.createSession({ idempotencyKey: 'warmup', clientRef: 'warmup' });
+    const reissued = await startIdentityVerification(store, provider2, intake);
+    expect(reissued.record.id).toBe(record.id);
+    expect(reissued.record.providerRef).not.toBe(record.providerRef);
+    const byNewRef = await store.getByProviderRef(reissued.record.providerRef);
+    expect(byNewRef?.id).toBe(record.id);
+    // Reload by intake: the persisted row itself must carry the new ref
+    // (other tests share the D1 database, so the old ref may exist elsewhere).
+    const reloaded = await store.getByIntake(intake.id);
+    expect(reloaded?.providerRef).toBe(reissued.record.providerRef);
+    expect(reloaded?.status).toBe('PENDING');
+  });
+
   it('retainer: publish → request → sign → evidence persists in D1', async () => {
     const versions = new D1RetainerVersionStore(env.DB);
     const signatures = new D1RetainerSignatureStore(env.DB);
