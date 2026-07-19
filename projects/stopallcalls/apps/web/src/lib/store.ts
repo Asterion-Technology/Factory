@@ -98,6 +98,9 @@ import {
 interface CloudflareEnv {
   DB: D1Like;
   EVIDENCE_BUCKET: R2BucketLike;
+  // RAD-27: retainer PDFs land here via server-side binding put — staff-only,
+  // small files, no presign ceremony needed.
+  DOCUMENTS_BUCKET: { put(key: string, value: ArrayBuffer): Promise<unknown> };
   SAC_ACCOUNT_ID: string;
   SAC_EVIDENCE_BUCKET_NAME: string;
   // Wrangler secrets (R2 SigV4 signing pair for presigned uploads).
@@ -353,6 +356,28 @@ export function getAuditStore(): AuditStore {
 export function getPaymentAdapter(): FakePaymentAdapter {
   g[PAYMENT_ADAPTER_KEY] ??= new FakePaymentAdapter();
   return g[PAYMENT_ADAPTER_KEY];
+}
+
+// RAD-27: where published retainer documents are written. Deployed = the
+// documents R2 bucket binding; dev/E2E = an in-memory sink (isolate-local,
+// fine for a staff-only publish flow exercised against real infra on staging).
+export interface DocumentSink {
+  put(key: string, bytes: ArrayBuffer): Promise<void>;
+}
+
+const DOCUMENT_SINK_KEY = Symbol.for('sac.store.documentSink');
+const gDocs = globalThis as { [DOCUMENT_SINK_KEY]?: DocumentSink };
+
+export function getDocumentSink(): DocumentSink {
+  const cf = cloudflareEnv();
+  gDocs[DOCUMENT_SINK_KEY] ??= cf
+    ? { put: async (key, bytes) => void (await cf.DOCUMENTS_BUCKET.put(key, bytes)) }
+    : {
+        put: async () => {
+          /* dev sink: publish flow only needs the key recorded on the version */
+        },
+      };
+  return gDocs[DOCUMENT_SINK_KEY];
 }
 
 // RAD-26: real didit.me IDV when fully configured (all three values); fake

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Market {
@@ -72,6 +73,15 @@ export default function StaffAdminPage() {
   return (
     <section>
       <h1>Administration</h1>
+
+      <h2>Retainer agreement</h2>
+      <p className="staff-sub">
+        Upload and publish the immutable, hash-bound retainer versions consumers sign —{' '}
+        <Link className="link" href="/staff/admin/retainer">
+          manage retainer versions →
+        </Link>
+      </p>
+
       <h2>Markets</h2>
       <p className="staff-sub">
         Intake opens only in an <strong>active</strong> market for an allowlisted region. Flips never affect existing

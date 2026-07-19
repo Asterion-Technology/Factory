@@ -24,6 +24,8 @@ export interface RetainerVersionStore {
   getById(id: string): Promise<RetainerVersionRecord | null>;
   /** Latest published version for a jurisdiction (by publishedAt). */
   getActive(jurisdiction: string): Promise<RetainerVersionRecord | null>;
+  /** Full publish history, newest first (RAD-27 admin screen). */
+  list(): Promise<RetainerVersionRecord[]>;
 }
 
 export class InMemoryRetainerVersionStore implements RetainerVersionStore {
@@ -43,6 +45,12 @@ export class InMemoryRetainerVersionStore implements RetainerVersionStore {
       .filter((v) => v.jurisdiction === jurisdiction)
       .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
     return candidates[0] ? structuredClone(candidates[0]) : null;
+  }
+
+  async list(): Promise<RetainerVersionRecord[]> {
+    return [...this.byId.values()]
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+      .map((v) => structuredClone(v));
   }
 }
 

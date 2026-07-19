@@ -23,3 +23,12 @@ export async function POST(req: NextRequest) {
     return jsonOk({ version });
   });
 }
+
+/** RAD-27: publish history for the admin screen, newest first. */
+export async function GET(_req: NextRequest) {
+  return withErrorHandling(async () => {
+    if (!clioConnectEnabled()) return jsonError(404, 'NOT_FOUND', 'Not found.');
+    const versions = await getRetainerVersionStore().list();
+    return jsonOk({ versions });
+  });
+}

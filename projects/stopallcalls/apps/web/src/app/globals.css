@@ -337,3 +337,9 @@ legend {
 .stat-dot-alert { background: #8f1f1f; }
 .stat-attention { border-color: #d9a284; }
 .stat-alert { border-color: #c98484; }
+
+/* RAD-27 retainer admin */
+.retainer-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; max-width: 56rem; margin-bottom: 1rem; }
+.retainer-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--ink-muted); }
+.retainer-form input { padding: 0.45rem 0.6rem; border: 1px solid #c9c4ba; border-radius: 6px; font: inherit; }
+.staff-note { background: #eef4ec; border: 1px solid #b9ceb2; border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.9rem; }
