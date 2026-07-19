@@ -1,5 +1,8 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import {
+  D1MarketStore,
+  InMemoryMarketStore,
+  type MarketStore,
   D1AuthStore,
   D1ClioConnectionStore,
   D1ClioMappingStore,
@@ -310,6 +313,17 @@ export function getPdfAdapter(): FakePdfAdapter {
 // schema, so the D1 store needs no migration.
 const AUDIT_KEY = Symbol.for('stopallcalls.auditStore');
 const g6 = globalThis as { [AUDIT_KEY]?: AuditStore };
+
+const MARKET_KEY = Symbol.for('sac.store.markets');
+interface G7 { [MARKET_KEY]?: MarketStore }
+const g7 = globalThis as unknown as G7;
+
+// RAD-17: market config — D1-backed deployed, seeded memory locally.
+export function getMarketStore(): MarketStore {
+  const cf = cloudflareEnv();
+  g7[MARKET_KEY] ??= cf ? new D1MarketStore(cf.DB) : new InMemoryMarketStore();
+  return g7[MARKET_KEY];
+}
 
 export function getAuditStore(): AuditStore {
   const cf = cloudflareEnv();

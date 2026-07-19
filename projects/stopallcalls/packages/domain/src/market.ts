@@ -41,3 +41,22 @@ export function assertIntakeOpen(market: MarketConfig, region: string): void {
     throw new MarketError(`Intake is not yet available in ${region.toUpperCase()}.`);
   }
 }
+
+// Region normalization: the intake form captures free text ("Ontario",
+// "Québec", "qc"). Gate decisions must be spelling- and accent-insensitive,
+// and an unrecognized region fails CLOSED — for a legal-services funnel a
+// typo asks the consumer to correct, it never slips a closed jurisdiction in.
+const CA_REGION_NAMES: Record<string, string> = {
+  ALBERTA: 'AB', 'BRITISH COLUMBIA': 'BC', MANITOBA: 'MB', 'NEW BRUNSWICK': 'NB',
+  'NEWFOUNDLAND AND LABRADOR': 'NL', NEWFOUNDLAND: 'NL', 'NOVA SCOTIA': 'NS',
+  'NORTHWEST TERRITORIES': 'NT', NUNAVUT: 'NU', ONTARIO: 'ON',
+  'PRINCE EDWARD ISLAND': 'PE', QUEBEC: 'QC', SASKATCHEWAN: 'SK', YUKON: 'YT',
+};
+const CA_REGION_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
+
+/** "Québec" → "QC", "on" → "ON"; null when unrecognized (caller fails closed). */
+export function normalizeCanadianRegion(input: string): string | null {
+  const flat = input.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/\s+/g, ' ').replace(/\./g, '');
+  if (CA_REGION_CODES.has(flat)) return flat;
+  return CA_REGION_NAMES[flat] ?? null;
+}
