@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { identityWebhookEventSchema } from '@stopallcalls/contracts';
-import { applyIdentityWebhook } from '@stopallcalls/db';
+import { ServiceError, applyIdentityWebhook } from '@stopallcalls/db';
 import { jsonError, jsonOk, withErrorHandling } from '@/lib/api';
 import { getIdentityAdapter, getIdentityStore } from '@/lib/store';
 
@@ -29,7 +29,19 @@ export async function POST(req: NextRequest) {
       event = identityWebhookEventSchema.parse(JSON.parse(raw));
     }
 
-    const record = await applyIdentityWebhook(getIdentityStore(), adapter, raw, signature, event);
-    return jsonOk({ received: true, status: record.status });
+    try {
+      const record = await applyIdentityWebhook(getIdentityStore(), adapter, raw, signature, event);
+      return jsonOk({ received: true, status: record.status });
+    } catch (err) {
+      // Authenticated event for a session we have no record of (provider test
+      // events; terminal-state re-verifications — see TODO). Ack it: didit
+      // RETRIES on 404, so refusing authentic-but-unmatched events causes
+      // retry storms and false alarms in the provider console.
+      if (err instanceof ServiceError && err.code === 'NOT_FOUND') {
+        console.warn('identity webhook: no record for provider ref', event.providerRef);
+        return jsonOk({ received: true, unmatched: true });
+      }
+      throw err;
+    }
   });
 }
